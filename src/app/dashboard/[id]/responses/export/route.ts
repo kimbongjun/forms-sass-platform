@@ -18,7 +18,7 @@ function escapeCsv(val: string): string {
 
 export async function GET(_req: Request, { params }: RouteContext) {
   const { id } = await params
-  const supabase = createServerClient()
+  const supabase = await createServerClient()
 
   const [{ data: project }, { data: fields }, { data: submissions }] = await Promise.all([
     supabase.from('projects').select('title').eq('id', id).single(),
@@ -28,13 +28,10 @@ export async function GET(_req: Request, { params }: RouteContext) {
 
   if (!project) return notFound()
 
-  const inputFields: FormField[] = (fields ?? []).filter((f: FormField) =>
-    INPUT_TYPES.includes(f.type)
-  )
+  const inputFields: FormField[] = (fields ?? []).filter((f: FormField) => INPUT_TYPES.includes(f.type))
 
   const header = ['제출 시각', ...inputFields.map((f) => f.label || '(제목 없음)')]
-    .map(escapeCsv)
-    .join(',')
+    .map(escapeCsv).join(',')
 
   const rows = (submissions ?? []).map((sub) => {
     const createdAt = new Date(sub.created_at).toLocaleString('ko-KR', {
@@ -51,8 +48,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
     return [escapeCsv(createdAt), ...cols].join(',')
   })
 
-  const csv = '\uFEFF' + [header, ...rows].join('\n') // BOM for Excel UTF-8
-
+  const csv = '\uFEFF' + [header, ...rows].join('\n')
   const filename = encodeURIComponent(`${project.title}_responses.csv`)
   return new NextResponse(csv, {
     headers: {

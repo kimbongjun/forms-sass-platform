@@ -8,9 +8,15 @@ interface PublicFormProps {
   projectId: string
   fields: FormField[]
   themeColor?: string
+  previewMode?: boolean
 }
 
-export default function PublicForm({ projectId, fields, themeColor = '#111827' }: PublicFormProps) {
+export default function PublicForm({
+  projectId,
+  fields,
+  themeColor = '#111827',
+  previewMode = false,
+}: PublicFormProps) {
   const [answers, setAnswers] = useState<Record<string, string | boolean | string[]>>({})
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -32,9 +38,13 @@ export default function PublicForm({ projectId, fields, themeColor = '#111827' }
     e.preventDefault()
     setError('')
 
-    // 필수 필드 검증
+    if (previewMode) {
+      setError('미리보기 모드에서는 제출되지 않습니다.')
+      return
+    }
+
     for (const field of fields) {
-      if (field.type === 'html' || field.type === 'map' || field.type === 'youtube' || field.type === 'text_block' || field.type === 'image' || field.type === 'divider') continue
+      if (['html', 'map', 'youtube', 'text_block', 'image', 'divider'].includes(field.type)) continue
       if (!field.required) continue
       const val = answers[field.id]
       const isEmpty =
@@ -49,7 +59,6 @@ export default function PublicForm({ projectId, fields, themeColor = '#111827' }
     }
 
     setLoading(true)
-
     try {
       const res = await fetch('/api/submit', {
         method: 'POST',
@@ -60,10 +69,8 @@ export default function PublicForm({ projectId, fields, themeColor = '#111827' }
           fields: fields.map((f) => ({ id: f.id, label: f.label, type: f.type })),
         }),
       })
-
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? '제출에 실패했습니다.')
-
       setSubmitted(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.')
@@ -106,7 +113,7 @@ export default function PublicForm({ projectId, fields, themeColor = '#111827' }
         className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
       >
         {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-        {loading ? '제출 중...' : '제출하기'}
+        {previewMode ? '제출하기 (미리보기)' : loading ? '제출 중...' : '제출하기'}
       </button>
     </form>
   )
@@ -139,23 +146,15 @@ function FieldRenderer({ field, value, onChange, onToggleCheckbox, themeColor }:
     return (
       <figure>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={field.content}
-          alt={field.label}
-          className="w-full rounded-xl object-cover"
-        />
+        <img src={field.content} alt={field.label} className="w-full rounded-xl object-cover" />
         {field.label && (
-          <figcaption className="mt-2 text-center text-xs text-gray-400">
-            {field.label}
-          </figcaption>
+          <figcaption className="mt-2 text-center text-xs text-gray-400">{field.label}</figcaption>
         )}
       </figure>
     )
   }
 
-  if (field.type === 'divider') {
-    return <hr className="border-gray-200" />
-  }
+  if (field.type === 'divider') return <hr className="border-gray-200" />
 
   if (field.type === 'html') {
     return (
@@ -168,7 +167,6 @@ function FieldRenderer({ field, value, onChange, onToggleCheckbox, themeColor }:
 
   if (field.type === 'map') {
     const rawSrc = field.content ?? ''
-    // embed/v1/place 포맷(구 방식)이면 q 파라미터에서 주소 추출 후 신규 포맷으로 변환
     let src = rawSrc
     if (rawSrc.includes('embed/v1/place')) {
       try {
@@ -199,15 +197,7 @@ function FieldRenderer({ field, value, onChange, onToggleCheckbox, themeColor }:
       /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/
     )
     const videoId = match?.[1]
-
-    if (!videoId) {
-      return (
-        <div className="flex items-center justify-center rounded-xl bg-gray-100 text-sm text-gray-400" style={{ height: '200px' }}>
-          영상 URL을 입력해주세요
-        </div>
-      )
-    }
-
+    if (!videoId) return null
     return (
       <div className="relative w-full overflow-hidden rounded-xl" style={{ paddingBottom: '56.25%' }}>
         <iframe
@@ -229,93 +219,43 @@ function FieldRenderer({ field, value, onChange, onToggleCheckbox, themeColor }:
       </label>
 
       {field.type === 'text' && (
-        <input
-          type="text"
-          value={(value as string) ?? ''}
-          onChange={(e) => onChange(e.target.value)}
-          required={field.required}
-          className={inputClass}
-        />
+        <input type="text" value={(value as string) ?? ''} onChange={(e) => onChange(e.target.value)} required={field.required} className={inputClass} />
       )}
-
       {field.type === 'email' && (
-        <input
-          type="email"
-          value={(value as string) ?? ''}
-          onChange={(e) => onChange(e.target.value)}
-          required={field.required}
-          className={inputClass}
-        />
+        <input type="email" value={(value as string) ?? ''} onChange={(e) => onChange(e.target.value)} required={field.required} className={inputClass} />
       )}
-
       {field.type === 'textarea' && (
-        <textarea
-          rows={4}
-          value={(value as string) ?? ''}
-          onChange={(e) => onChange(e.target.value)}
-          required={field.required}
-          className={`${inputClass} resize-y`}
-        />
+        <textarea rows={4} value={(value as string) ?? ''} onChange={(e) => onChange(e.target.value)} required={field.required} className={`${inputClass} resize-y`} />
       )}
-
       {field.type === 'checkbox' && (
         <label className="flex cursor-pointer items-center gap-2.5 text-sm text-gray-700">
-          <input
-            type="checkbox"
-            checked={(value as boolean) ?? false}
-            onChange={(e) => onChange(e.target.checked)}
-            style={{ accentColor: themeColor }}
-            className="h-4 w-4 rounded"
-          />
+          <input type="checkbox" checked={(value as boolean) ?? false} onChange={(e) => onChange(e.target.checked)} style={{ accentColor: themeColor }} className="h-4 w-4 rounded" />
           동의합니다
         </label>
       )}
-
       {field.type === 'select' && (
-        <select
-          value={(value as string) ?? ''}
-          onChange={(e) => onChange(e.target.value)}
-          required={field.required}
-          className={inputClass}
-        >
+        <select value={(value as string) ?? ''} onChange={(e) => onChange(e.target.value)} required={field.required} className={inputClass}>
           <option value="">선택하세요</option>
           {(field.options ?? []).filter(Boolean).map((opt, i) => (
             <option key={i} value={opt}>{opt}</option>
           ))}
         </select>
       )}
-
       {field.type === 'radio' && (
         <div className="space-y-2">
           {(field.options ?? []).filter(Boolean).map((opt, i) => (
             <label key={i} className="flex cursor-pointer items-center gap-2.5 text-sm text-gray-700">
-              <input
-                type="radio"
-                name={field.id}
-                value={opt}
-                checked={(value as string) === opt}
-                onChange={() => onChange(opt)}
-                required={field.required}
-                style={{ accentColor: themeColor }}
-                className="h-4 w-4"
-              />
+              <input type="radio" name={field.id} value={opt} checked={(value as string) === opt} onChange={() => onChange(opt)} required={field.required} style={{ accentColor: themeColor }} className="h-4 w-4" />
               {opt}
             </label>
           ))}
         </div>
       )}
-
       {field.type === 'checkbox_group' && (
         <div className="space-y-2">
           {(field.options ?? []).filter(Boolean).map((opt, i) => (
             <label key={i} className="flex cursor-pointer items-center gap-2.5 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                checked={((value as string[]) ?? []).includes(opt)}
-                onChange={() => onToggleCheckbox(opt)}
-                style={{ accentColor: themeColor }}
-                className="h-4 w-4 rounded"
-              />
+              <input type="checkbox" checked={((value as string[]) ?? []).includes(opt)} onChange={() => onToggleCheckbox(opt)} style={{ accentColor: themeColor }} className="h-4 w-4 rounded" />
               {opt}
             </label>
           ))}

@@ -9,7 +9,7 @@ interface SlugPageProps {
 
 export default async function SlugPage({ params }: SlugPageProps) {
   const { slug } = await params
-  const supabase = createServerClient()
+  const supabase = await createServerClient()
 
   const { data: project, error: projectErr } = await supabase
     .from('projects')
@@ -18,19 +18,17 @@ export default async function SlugPage({ params }: SlugPageProps) {
     .single()
 
   if (projectErr && projectErr.code !== 'PGRST116') {
-    // PGRST116 = 행 없음. 그 외 에러(RLS 등)는 원인 표시
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-gray-50 p-8 text-center">
         <p className="text-lg font-semibold text-red-600">폼을 불러올 수 없습니다</p>
         <p className="text-sm text-gray-500">{projectErr.message}</p>
-        <p className="text-xs text-gray-400">slug: {slug}</p>
       </div>
     )
   }
 
   if (!project) notFound()
 
-  // ── 비공개 폼 ─────────────────────────────────────────────────────────────
+  // ── 비공개 폼 ──────────────────────────────────────────────────────────────
   if (project.is_published === false) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-gray-50 p-8 text-center">
@@ -74,8 +72,6 @@ export default async function SlugPage({ params }: SlugPageProps) {
 
   return (
     <div className="min-h-screen bg-gray-50">
-
-      {/* 배너 */}
       {project.banner_url && (
         <div className="relative h-48 w-full overflow-hidden sm:h-64">
           <Image
@@ -87,7 +83,6 @@ export default async function SlugPage({ params }: SlugPageProps) {
           />
         </div>
       )}
-
       <div className="mx-auto w-full max-w-xl px-4 py-10">
         <h1 className="mb-8 text-2xl font-bold text-gray-900">{project.title}</h1>
         <PublicForm

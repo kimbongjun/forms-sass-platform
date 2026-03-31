@@ -16,14 +16,18 @@
 ```
 src/
 ├── app/
-│   ├── [slug]/page.tsx           공개 폼 뷰 (Server)
-│   ├── api/submit/route.ts       제출 API (POST → DB저장 + 이메일)
+│   ├── [slug]/page.tsx                       공개 폼 뷰 (Server) — 비공개/마감/최대응답 검사
+│   ├── api/submit/route.ts                   제출 API (POST → 제한검사 → DB저장 → 이메일)
 │   ├── dashboard/
-│   │   ├── page.tsx              프로젝트 목록 (Server)
-│   │   ├── new/page.tsx          신규 생성 (Server shell → FormBuilder)
-│   │   └── [id]/edit/page.tsx    편집 (Server shell → EditFormBuilder)
-│   ├── page.tsx                  랜딩 페이지
-│   └── globals.css               Tiptap 스타일 포함
+│   │   ├── page.tsx                          프로젝트 목록 (Server)
+│   │   ├── new/page.tsx                      신규 생성 (Server shell → FormBuilder)
+│   │   └── [id]/
+│   │       ├── edit/page.tsx                 편집 (Server shell → EditFormBuilder)
+│   │       └── responses/
+│   │           ├── page.tsx                  응답 확인 대시보드 (Server)
+│   │           └── export/route.ts           CSV 내보내기 GET 핸들러
+│   ├── page.tsx                              랜딩 페이지
+│   └── globals.css                           Tiptap 스타일 포함
 ├── components/
 │   ├── builder/                  (모두 'use client')
 │   │   ├── FormBuilder.tsx       신규 빌더 전체 레이아웃
@@ -45,6 +49,6 @@ src/
 ```
 
 ## 저장/수정 흐름
-- **신규**: `projects INSERT` → `uploadBanner` → `form_fields bulk INSERT` → `/dashboard`
+- **신규**: `projects INSERT` (is_published/deadline/max_submissions 포함) → `uploadBanner` → `form_fields bulk INSERT` → `/dashboard`
 - **수정**: `projects UPDATE` → `form_fields DELETE` → `form_fields re-INSERT` → `/dashboard`
-- **제출**: `POST /api/submit` → `submissions INSERT` → Resend 이메일 발송
+- **제출**: `POST /api/submit` → 제한 검사 (is_published/deadline/max_submissions) → `submissions INSERT` → Resend 이메일 발송 (입력 필드만)

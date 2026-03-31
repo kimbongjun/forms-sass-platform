@@ -2,23 +2,18 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { AlignLeft, ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react'
+import { AlignLeft, ArrowLeft, Loader2, CheckCircle2, Eye, Copy } from 'lucide-react'
 import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
+  DndContext, closestCenter, PointerSensor,
+  useSensor, useSensors, type DragEndEvent,
 } from '@dnd-kit/core'
 import {
-  SortableContext,
-  verticalListSortingStrategy,
-  arrayMove,
+  SortableContext, verticalListSortingStrategy, arrayMove,
 } from '@dnd-kit/sortable'
 
 import BannerUpload from './BannerUpload'
 import FieldCard, { FIELD_TYPE_META } from './FieldCard'
+import PreviewModal from './PreviewModal'
 import { createClient } from '@/utils/supabase/client'
 import { uploadBanner } from '@/utils/supabase/storage'
 import type { FieldType, FormField, Project } from '@/types/database'
@@ -31,9 +26,7 @@ const SIDEBAR_TYPES: FieldType[] = [
 
 const PRESET_COLORS = ['#111827', '#2563EB', '#16A34A', '#DC2626', '#9333EA', '#F59E0B', '#0891B2', '#EC4899']
 
-function generateId() {
-  return Math.random().toString(36).slice(2, 10)
-}
+function generateId() { return Math.random().toString(36).slice(2, 10) }
 
 interface EditFormBuilderProps {
   project: Project & { id: string }
@@ -53,15 +46,16 @@ export default function EditFormBuilder({ project, initialFields }: EditFormBuil
   const [maxSubmissions, setMaxSubmissions] = useState(
     project.max_submissions != null ? String(project.max_submissions) : ''
   )
+  const [webhookUrl, setWebhookUrl] = useState(project.webhook_url ?? '')
+  const [themeColor, setThemeColor] = useState(project.theme_color ?? '#111827')
   const [fields, setFields] = useState<FormField[]>(initialFields)
   const [bannerFile, setBannerFile] = useState<File | null>(null)
   const [bannerPreview, setBannerPreview] = useState<string | null>(project.banner_url ?? null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
-  const [themeColor, setThemeColor] = useState(project.theme_color ?? '#111827')
-
-  // ── Field operations ────────────────────────────────────────────────────────
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [slugCopied, setSlugCopied] = useState(false)
 
   function addField(type: FieldType) {
     const needsOptions = ['select', 'radio', 'checkbox_group'].includes(type)
@@ -69,10 +63,7 @@ export default function EditFormBuilder({ project, initialFields }: EditFormBuil
     setFields((prev) => [
       ...prev,
       {
-        id: generateId(),
-        label: '',
-        type,
-        required: false,
+        id: generateId(), label: '', type, required: false,
         order_index: prev.length,
         options: needsOptions ? [''] : undefined,
         content: needsContent ? '' : undefined,
@@ -81,16 +72,12 @@ export default function EditFormBuilder({ project, initialFields }: EditFormBuil
   }
 
   function removeField(id: string) {
-    setFields((prev) =>
-      prev.filter((f) => f.id !== id).map((f, i) => ({ ...f, order_index: i }))
-    )
+    setFields((prev) => prev.filter((f) => f.id !== id).map((f, i) => ({ ...f, order_index: i })))
   }
 
   function updateField(id: string, patch: Partial<FormField>) {
     setFields((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)))
   }
-
-  // ── Drag & Drop ─────────────────────────────────────────────────────────────
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
@@ -101,8 +88,6 @@ export default function EditFormBuilder({ project, initialFields }: EditFormBuil
       return arrayMove(prev, oldIndex, newIndex).map((f, i) => ({ ...f, order_index: i }))
     })
   }
-
-  // ── Banner ──────────────────────────────────────────────────────────────────
 
   function handleBannerFile(file: File) {
     setBannerFile(file)
@@ -116,7 +101,11 @@ export default function EditFormBuilder({ project, initialFields }: EditFormBuil
     setBannerPreview(null)
   }
 
-  // ── handleUpdate ────────────────────────────────────────────────────────────
+  function copySlug() {
+    navigator.clipboard.writeText(project.slug)
+    setSlugCopied(true)
+    setTimeout(() => setSlugCopied(false), 1500)
+  }
 
   async function handleUpdate() {
     if (!title.trim()) { setError('프로젝트 제목을 입력해주세요.'); return }
@@ -126,11 +115,8 @@ export default function EditFormBuilder({ project, initialFields }: EditFormBuil
 
     try {
       let bannerUrl = project.banner_url ?? null
-      if (bannerFile) {
-        bannerUrl = await uploadBanner(supabase, bannerFile)
-      } else if (!bannerPreview) {
-        bannerUrl = null
-      }
+      if (bannerFile) bannerUrl = await uploadBanner(supabase, bannerFile)
+      else if (!bannerPreview) bannerUrl = null
 
       const { error: updateErr } = await supabase
         .from('projects')
@@ -142,6 +128,7 @@ export default function EditFormBuilder({ project, initialFields }: EditFormBuil
           is_published: isPublished,
           deadline: deadline || null,
           max_submissions: maxSubmissions ? parseInt(maxSubmissions, 10) : null,
+          webhook_url: webhookUrl.trim() || null,
         })
         .eq('id', project.id)
       if (updateErr) throw new Error(`프로젝트 수정 실패: ${updateErr.message}`)
@@ -152,8 +139,7 @@ export default function EditFormBuilder({ project, initialFields }: EditFormBuil
         const rows = fields.map((f) => ({
           project_id: project.id,
           label: f.label.trim() || '(제목 없음)',
-          type: f.type,
-          required: f.required,
+          type: f.type, required: f.required,
           order_index: f.order_index,
           options: f.options ?? null,
           content: f.content ?? null,
@@ -171,8 +157,6 @@ export default function EditFormBuilder({ project, initialFields }: EditFormBuil
     }
   }
 
-  // ── Success ─────────────────────────────────────────────────────────────────
-
   if (saved) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gray-50 text-green-600">
@@ -183,19 +167,19 @@ export default function EditFormBuilder({ project, initialFields }: EditFormBuil
     )
   }
 
-  // ── Render ──────────────────────────────────────────────────────────────────
+  const inputClass = 'w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 shadow-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gray-900'
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
+      {previewOpen && (
+        <PreviewModal fields={fields} themeColor={themeColor} onClose={() => setPreviewOpen(false)} />
+      )}
 
       {/* Header */}
       <header className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-3 shadow-sm">
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => router.push('/dashboard')}
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
-          >
+          <button type="button" onClick={() => router.push('/dashboard')}
+            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors">
             <ArrowLeft className="h-4 w-4" />
           </button>
           <div>
@@ -203,14 +187,15 @@ export default function EditFormBuilder({ project, initialFields }: EditFormBuil
             <span className="ml-2 text-xs text-gray-400">{project.slug}</span>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {error && <span className="max-w-xs truncate text-xs text-red-600">{error}</span>}
-          <button
-            type="button"
-            onClick={handleUpdate}
-            disabled={loading}
-            className="flex items-center gap-2 rounded-lg bg-gray-900 px-5 py-2 text-sm font-medium text-white hover:bg-gray-700 transition-colors disabled:opacity-50"
-          >
+          <button type="button" onClick={() => setPreviewOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+            <Eye className="h-4 w-4" />
+            미리보기
+          </button>
+          <button type="button" onClick={handleUpdate} disabled={loading}
+            className="flex items-center gap-2 rounded-lg bg-gray-900 px-5 py-2 text-sm font-medium text-white hover:bg-gray-700 transition-colors disabled:opacity-50">
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             {loading ? '저장 중...' : '변경 저장'}
           </button>
@@ -218,52 +203,34 @@ export default function EditFormBuilder({ project, initialFields }: EditFormBuil
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-
         {/* Sidebar */}
         <aside className="flex w-56 shrink-0 flex-col gap-1 border-r border-gray-200 bg-white px-3 py-5">
-          <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
-            필드 유형
-          </p>
+          <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-gray-400">필드 유형</p>
           {SIDEBAR_TYPES.map((type) => {
             const meta = FIELD_TYPE_META[type]
             return (
-              <button
-                key={type}
-                type="button"
-                onClick={() => addField(type)}
-                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 active:scale-95"
-              >
-                <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-sm ${meta.color}`}>
-                  {meta.icon}
-                </span>
+              <button key={type} type="button" onClick={() => addField(type)}
+                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 active:scale-95">
+                <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-sm ${meta.color}`}>{meta.icon}</span>
                 {meta.label}
               </button>
             )
           })}
 
-          {/* Theme color picker */}
+          {/* Theme color */}
           <div className="mt-4 border-t border-gray-100 pt-4">
             <p className="mb-3 px-2 text-xs font-semibold uppercase tracking-wider text-gray-400">테마 컬러</p>
             <div className="grid grid-cols-4 gap-1.5 px-2 mb-2">
               {PRESET_COLORS.map((color) => (
-                <button
-                  key={color}
-                  type="button"
-                  onClick={() => setThemeColor(color)}
+                <button key={color} type="button" onClick={() => setThemeColor(color)}
                   style={{ backgroundColor: color }}
-                  className={`h-7 w-full rounded-md transition-all ${themeColor === color ? 'ring-2 ring-offset-1 ring-gray-400' : ''}`}
-                  title={color}
-                />
+                  className={`h-7 w-full rounded-md transition-all ${themeColor === color ? 'ring-2 ring-offset-1 ring-gray-400' : ''}`} />
               ))}
             </div>
             <div className="px-2">
               <label className="text-xs text-gray-400 mb-1 block">직접 선택</label>
-              <input
-                type="color"
-                value={themeColor}
-                onChange={(e) => setThemeColor(e.target.value)}
-                className="h-8 w-full cursor-pointer rounded-lg border border-gray-200"
-              />
+              <input type="color" value={themeColor} onChange={(e) => setThemeColor(e.target.value)}
+                className="h-8 w-full cursor-pointer rounded-lg border border-gray-200" />
             </div>
           </div>
 
@@ -275,69 +242,52 @@ export default function EditFormBuilder({ project, initialFields }: EditFormBuil
         {/* Canvas */}
         <main className="flex-1 overflow-y-auto px-8 py-6">
           <div className="mx-auto w-full max-w-2xl space-y-6">
-
-            <BannerUpload
-              preview={bannerPreview}
-              onFileChange={handleBannerFile}
-              onRemove={handleBannerRemove}
-            />
+            <BannerUpload preview={bannerPreview} onFileChange={handleBannerFile} onRemove={handleBannerRemove} />
 
             <section className="space-y-4">
               <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
-                  프로젝트 제목 <span className="text-red-400">*</span>
-                </p>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => { setTitle(e.target.value); setError('') }}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gray-900"
-                />
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">프로젝트 제목 <span className="text-red-400">*</span></p>
+                <input type="text" value={title} onChange={(e) => { setTitle(e.target.value); setError('') }} className={inputClass} />
               </div>
               <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
-                  응답 알림 이메일
-                </p>
-                <input
-                  type="email"
-                  value={notificationEmail}
-                  onChange={(e) => setNotificationEmail(e.target.value)}
-                  placeholder="admin@example.com"
-                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 shadow-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gray-900"
-                />
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">슬러그 (URL — 변경 불가)</p>
+                <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                  <span className="flex-1 text-sm text-gray-500">{project.slug}</span>
+                  <button type="button" onClick={copySlug}
+                    className="flex shrink-0 items-center gap-1 text-xs text-gray-400 hover:text-gray-700 transition-colors">
+                    <Copy className="h-3.5 w-3.5" />
+                    {slugCopied ? '복사됨!' : '복사'}
+                  </button>
+                </div>
+                <p className="mt-1 text-xs text-gray-400">공개된 폼 URL이 변경되므로 수정할 수 없습니다.</p>
+              </div>
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">응답 알림 이메일</p>
+                <input type="email" value={notificationEmail} onChange={(e) => setNotificationEmail(e.target.value)}
+                  placeholder="admin@example.com" className={inputClass} />
                 <p className="mt-1.5 text-xs text-gray-400">입력 시 폼 제출마다 해당 이메일로 응답 내용이 발송됩니다.</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">제출 마감일</p>
-                  <input
-                    type="datetime-local"
-                    value={deadline}
-                    onChange={(e) => setDeadline(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gray-900"
-                  />
+                  <input type="datetime-local" value={deadline} onChange={(e) => setDeadline(e.target.value)} className={inputClass} />
                 </div>
                 <div>
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">최대 응답 수</p>
-                  <input
-                    type="number"
-                    min="1"
-                    value={maxSubmissions}
-                    onChange={(e) => setMaxSubmissions(e.target.value)}
-                    placeholder="제한 없음"
-                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 shadow-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gray-900"
-                  />
+                  <input type="number" min="1" value={maxSubmissions} onChange={(e) => setMaxSubmissions(e.target.value)}
+                    placeholder="제한 없음" className={inputClass} />
                 </div>
+              </div>
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">웹훅 URL</p>
+                <input type="url" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)}
+                  placeholder="https://your-server.com/webhook" className={inputClass} />
+                <p className="mt-1 text-xs text-gray-400">제출 시 해당 URL로 응답 데이터가 POST 됩니다.</p>
               </div>
               <div>
                 <label className="flex cursor-pointer items-center gap-3">
                   <div className="relative">
-                    <input
-                      type="checkbox"
-                      checked={isPublished}
-                      onChange={(e) => setIsPublished(e.target.checked)}
-                      className="sr-only"
-                    />
+                    <input type="checkbox" checked={isPublished} onChange={(e) => setIsPublished(e.target.checked)} className="sr-only" />
                     <div className={`h-5 w-9 rounded-full transition-colors ${isPublished ? 'bg-gray-900' : 'bg-gray-300'}`} />
                     <div className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${isPublished ? 'translate-x-4' : 'translate-x-0.5'}`} />
                   </div>
@@ -349,11 +299,8 @@ export default function EditFormBuilder({ project, initialFields }: EditFormBuil
             <section>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
                 폼 필드{' '}
-                <span className="ml-1 rounded-full bg-gray-200 px-1.5 py-0.5 font-normal text-gray-600">
-                  {fields.length}
-                </span>
+                <span className="ml-1 rounded-full bg-gray-200 px-1.5 py-0.5 font-normal text-gray-600">{fields.length}</span>
               </p>
-
               {fields.length === 0 ? (
                 <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-white py-16 text-center">
                   <AlignLeft className="mb-3 h-8 w-8 text-gray-300" />
@@ -361,20 +308,11 @@ export default function EditFormBuilder({ project, initialFields }: EditFormBuil
                   <p className="mt-1 text-xs text-gray-400">왼쪽 사이드바에서 추가하세요.</p>
                 </div>
               ) : (
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
-                >
-                  <SortableContext
-                    items={fields.map((f) => f.id)}
-                    strategy={verticalListSortingStrategy}
-                  >
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                  <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy}>
                     <div className="space-y-2">
                       {fields.map((field) => (
-                        <FieldCard
-                          key={field.id}
-                          field={field}
+                        <FieldCard key={field.id} field={field}
                           onUpdate={(patch) => updateField(field.id, patch)}
                           onRemove={() => removeField(field.id)}
                         />
@@ -384,7 +322,6 @@ export default function EditFormBuilder({ project, initialFields }: EditFormBuil
                 </DndContext>
               )}
             </section>
-
           </div>
         </main>
       </div>

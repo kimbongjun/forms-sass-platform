@@ -1,8 +1,5 @@
 'use client'
 
-// 03-IMPLEMENTATION-PLAN.md Step 2: Project와 FormFields 트랜잭션 저장 핸들러
-// 01-SUPABASE-SCHEMA.md: atomic save (projects → form_fields bulk insert)
-
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
@@ -16,17 +13,27 @@ interface SaveButtonProps {
   isPublished: boolean
   deadline: string
   maxSubmissions: string
+  webhookUrl: string
+  customSlug: string
+  themeColor: string
   fields: FormField[]
   bannerFile: File | null
   onError: (message: string) => void
-  themeColor: string
 }
 
-function generateSlug(title: string): string {
+function generateSlug(title: string, custom: string): string {
   const rand = Math.random().toString(36).slice(2, 8)
+  if (custom.trim()) {
+    return custom
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, '')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+      || `form-${rand}`
+  }
   const base = title
     .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '') // 한글·특수문자 제거, ASCII만 남김
+    .replace(/[^a-z0-9\s-]/g, '')
     .trim()
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
@@ -34,7 +41,10 @@ function generateSlug(title: string): string {
   return base ? `${base}-${rand}` : `form-${rand}`
 }
 
-export default function SaveButton({ title, notificationEmail, isPublished, deadline, maxSubmissions, fields, bannerFile, onError, themeColor }: SaveButtonProps) {
+export default function SaveButton({
+  title, notificationEmail, isPublished, deadline, maxSubmissions,
+  webhookUrl, customSlug, themeColor, fields, bannerFile, onError,
+}: SaveButtonProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
 
@@ -46,18 +56,15 @@ export default function SaveButton({ title, notificationEmail, isPublished, dead
 
     setLoading(true)
     onError('')
-
     const supabase = createClient()
 
     try {
-      // ── 1. 배너 이미지 업로드 ────────────────────────────────────────────
-      let bannerUrl: string | null = null
-      if (bannerFile) {
-        bannerUrl = await uploadBanner(supabase, bannerFile)
-      }
+      const { data: { user } } = await supabase.auth.getUser()
 
-      // ── 2. projects 행 삽입 → id 획득 ────────────────────────────────────
-      const slug = generateSlug(title)
+      let bannerUrl: string | null = null
+      if (bannerFile) bannerUrl = await uploadBanner(supabase, bannerFile)
+
+      const slug = generateSlug(title, customSlug)
       const { data: project, error: projectErr } = await supabase
         .from('projects')
         .insert({
@@ -69,16 +76,16 @@ export default function SaveButton({ title, notificationEmail, isPublished, dead
           is_published: isPublished,
           deadline: deadline || null,
           max_submissions: maxSubmissions ? parseInt(maxSubmissions, 10) : null,
+          webhook_url: webhookUrl.trim() || null,
+          user_id: user?.id,
         })
         .select('id')
         .single()
 
       if (projectErr || !project) {
-        console.error('[SaveButton] projects insert error:', projectErr)
         throw new Error(`프로젝트 저장 실패: ${projectErr?.message ?? '데이터 반환 없음'}`)
       }
 
-      // ── 3. form_fields bulk insert (atomic save) ─────────────────────────
       if (fields.length > 0) {
         const rows = fields.map((f) => ({
           project_id: project.id,
@@ -89,16 +96,11 @@ export default function SaveButton({ title, notificationEmail, isPublished, dead
           options: f.options ?? null,
           content: f.content ?? null,
         }))
-
         const { error: fieldsErr } = await supabase.from('form_fields').insert(rows)
-
-        if (fieldsErr) {
-          console.error('[SaveButton] form_fields insert error:', fieldsErr)
-          throw new Error(`필드 저장 실패: ${fieldsErr.message}`)
-        }
+        if (fieldsErr) throw new Error(`필드 저장 실패: ${fieldsErr.message}`)
       }
 
-      router.push('/')
+      router.push('/dashboard')
     } catch (err) {
       onError(err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.')
     } finally {

@@ -35,6 +35,7 @@ export interface Project {
   is_published?: boolean
   deadline?: string | null
   max_submissions?: number | null
+  webhook_url?: string | null
   created_at?: string
 }
 

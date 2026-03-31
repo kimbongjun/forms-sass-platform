@@ -35,7 +35,7 @@
 | select / radio / checkbox_group | ✅ | ✅ | 옵션 목록 (추가/수정/삭제) | - |
 | html | ❌ | ❌ | Tiptap WYSIWYG 에디터 | - |
 | text_block | ❌ | ❌ | textarea (평문 텍스트) | - |
-| image | ✅ (캡션) | ❌ | URL 입력 | URL 있으면 `<img>` 미리보기 |
+| image | ✅ (캡션) | ❌ | URL 입력 + 파일 업로드 버튼 | URL 있으면 `<img>` 미리보기 |
 | divider | ❌ | ❌ | `<hr>` 미리보기 | - |
 | map | ❌ | ❌ | MapFieldEditor (iframe 코드/URL 입력) | 40% 비율 iframe |
 | youtube | ❌ | ❌ | URL 입력 | videoId 파싱 → 56.25% iframe |
@@ -59,6 +59,9 @@
 interface SaveButtonProps {
   title: string
   notificationEmail: string
+  isPublished: boolean
+  deadline: string          // datetime-local 문자열, 빈 문자열이면 null 저장
+  maxSubmissions: string    // 숫자 문자열, 빈 문자열이면 null 저장
   themeColor: string
   fields: FormField[]
   bannerFile: File | null
@@ -67,8 +70,9 @@ interface SaveButtonProps {
 ```
 
 ## EditFormBuilder (수정 저장)
-- `handleUpdate()`: projects UPDATE → form_fields DELETE → form_fields re-INSERT
+- `handleUpdate()`: projects UPDATE (is_published/deadline/max_submissions 포함) → form_fields DELETE → form_fields re-INSERT
 - 저장 완료 후 1.2초 뒤 `/dashboard` 이동
+- `deadline` 초기값: `project.deadline` → `new Date().toISOString().slice(0, 16)` 변환
 
 ## 테마 컬러
 - 사이드바 프리셋: `['#111827','#2563EB','#16A34A','#DC2626','#9333EA','#F59E0B','#0891B2','#EC4899']`
@@ -103,6 +107,7 @@ interface PublicFormProps {
 - 전체 선택 체크박스 + 선택 수 뱃지
 - 일괄 삭제: "N개 삭제" → 인라인 확인/취소
 - 개별 삭제: 휴지통 아이콘 → `window.confirm()` 후 삭제
+- BarChart2 아이콘: `/dashboard/{id}/responses` 응답 확인 페이지 이동
 - Eye 아이콘: `/{slug}` 새 탭으로 공개 폼 뷰
 - 삭제 완료 후 `router.refresh()`로 목록 갱신
 

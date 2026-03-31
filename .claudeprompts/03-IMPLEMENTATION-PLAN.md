@@ -21,12 +21,56 @@
 
 ### 대시보드
 - [x] `dashboard/page.tsx` — 프로젝트 목록 (Server)
-- [x] `ProjectList.tsx` — 목록 카드, 개별 삭제, 일괄 삭제, 공개 폼 뷰 버튼
+- [x] `ProjectList.tsx` — 목록 카드, 개별 삭제, 일괄 삭제, 공개 폼 뷰 버튼, 응답 보기 버튼
+- [x] `dashboard/[id]/responses/page.tsx` — 응답 확인 테이블 (Server), 입력 필드만 컬럼 표시
+- [x] `dashboard/[id]/responses/export/route.ts` — CSV 내보내기 (BOM UTF-8, Excel 호환)
 
 ### 공개 폼
-- [x] `[slug]/page.tsx` — slug로 project+fields 조회 (Server)
+- [x] `[slug]/page.tsx` — slug로 project+fields 조회 (Server), 비공개/마감일/최대응답 수 검사
 - [x] `PublicForm.tsx` — 13가지 필드 렌더 + 제출 + 테마 컬러 적용
-- [x] `api/submit/route.ts` — submissions INSERT + Resend 이메일 발송
+- [x] `api/submit/route.ts` — 제한 검사 → submissions INSERT → Resend 이메일 발송 (입력 필드만)
+
+### 폼 공개 설정
+- [x] `is_published` 공개/비공개 토글 (FormBuilder + EditFormBuilder)
+- [x] `deadline` 제출 마감일 datetime-local 입력
+- [x] `max_submissions` 최대 응답 수 number 입력
+
+### 이미지 업로드
+- [x] `uploadFieldImage()` — `storage.ts` 추가 (banners 버킷 `field-images/` 경로)
+- [x] `FieldCard` 이미지 섹션 — URL 입력 + 파일 업로드 병행
+
+### 사용자 인증 (Supabase Auth)
+- [x] `middleware.ts` — `/dashboard` 보호, 미로그인 시 `/login` 리다이렉트
+- [x] `utils/supabase/server.ts` — `@supabase/ssr` createServerClient (쿠키 기반 세션)
+- [x] `app/login/page.tsx` — 로그인/회원가입 탭 UI
+- [x] `app/auth/callback/route.ts` — OAuth 코드 교환 핸들러
+- [x] `components/auth/AuthForm.tsx` — 이메일+비밀번호 로그인/가입, 비밀번호 표시 토글
+- [x] `app/dashboard/account/page.tsx` — 계정 정보(이메일), 비밀번호 변경
+- [x] `components/dashboard/UserMenu.tsx` — 이메일 표시 + 계정 설정 + 로그아웃 드롭다운
+- [x] `app/page.tsx` — 로그인 사용자 → `/dashboard` 자동 리다이렉트
+
+### 폼 복제
+- [x] `app/api/duplicate/route.ts` — 원본 project+fields 복사, 비공개 상태로 생성
+- [x] `ProjectList.tsx` — Copy 아이콘 버튼 + 복제 중 스피너
+
+### 응답 관리 고도화
+- [x] `ResponsesTable.tsx` — 행 클릭 → 응답 상세 모달
+- [x] `responses/page.tsx` — 20건 페이지네이션 + select/radio/checkbox_group 통계 바 차트
+
+### 폼 미리보기
+- [x] `PreviewModal.tsx` — 빌더 내 모달로 공개 폼 렌더링 (previewMode: 실제 제출 안됨)
+- [x] FormBuilder / EditFormBuilder 헤더에 "미리보기" 버튼 추가
+
+### 커스텀 슬러그
+- [x] FormBuilder — 슬러그 입력 필드 (영문/숫자/하이픈만 허용, 비워두면 자동 생성)
+- [x] EditFormBuilder — 기존 슬러그 표시 + 클립보드 복사 (변경 불가)
+
+### 웹훅
+- [x] `api/submit/route.ts` — webhook_url 있으면 JSON POST 발송 (실패해도 제출 차단 안함)
+- [x] FormBuilder / EditFormBuilder — 웹훅 URL 입력 필드
+
+### 공개 상태 표시
+- [x] `ProjectList.tsx` — 공개/비공개 뱃지 (Globe / EyeOff 아이콘)
 
 ## 필드 타입 목록 (FieldType 13종)
 
@@ -70,8 +114,7 @@
 | Tiptap SSR | `dynamic(ssr:false)` + `immediatelyRender:false` | hydration mismatch 방지 |
 
 ## 향후 작업 (미구현)
-- [ ] 응답 확인 대시보드 (submissions 조회·표시)
-- [ ] 사용자 인증 (Supabase Auth)
-- [ ] 폼 공개/비공개 토글
-- [ ] 제출 마감일·최대 응답 수 설정
-- [ ] 이미지 필드 — 파일 직접 업로드 (Supabase Storage 연동)
+
+- [ ] **이메일 발송 실패 처리** — Resend 오류 시 로그 저장 또는 재시도
+- [ ] **이미지 필드 Storage 정책 분리** — banners 버킷 내 field-images 경로에 별도 RLS 적용
+- [ ] **다국어 지원** — 폼 UI 언어 설정

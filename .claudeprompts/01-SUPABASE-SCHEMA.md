@@ -11,7 +11,11 @@
 | banner_url | text | Storage 공개 URL |
 | notification_email | text | 응답 알림 수신 이메일 |
 | theme_color | text | hex 색상값, 기본 #111827 |
-| user_id | uuid | 추후 인증용 (현재 미사용) |
+| is_published | boolean | DEFAULT true, false면 공개 폼 접근 차단 |
+| deadline | timestamptz | 제출 마감일시, NULL이면 제한 없음 |
+| max_submissions | int | 최대 응답 수, NULL이면 제한 없음 |
+| webhook_url | text | 제출 시 POST 발송할 외부 URL |
+| user_id | uuid | Supabase Auth uid, 소유권 판별에 사용 |
 | created_at | timestamptz | now() |
 
 ### form_fields
@@ -61,8 +65,9 @@ CREATE POLICY anon_select_submissions ON submissions FOR SELECT TO anon USING (t
 
 ## Storage
 - 버킷명: `banners` (public)
-- 업로드 경로: `project-banners/{uuid}.{ext}`
-- 업로드 함수: `src/utils/supabase/storage.ts` → `uploadBanner(supabase, file): Promise<string>`
+- 배너 경로: `project-banners/{uuid}.{ext}` → `uploadBanner(supabase, file)`
+- 이미지 필드 경로: `field-images/{uuid}.{ext}` → `uploadFieldImage(supabase, file)`
+- 두 함수 모두 `src/utils/supabase/storage.ts` 에 정의, Public URL 반환
 
 ## 환경변수 (.env.local)
 ```
@@ -70,7 +75,6 @@ NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 RESEND_API_KEY=re_xxxxx
 RESEND_FROM_EMAIL=onboarding@resend.dev   # 도메인 인증 후 변경
-NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_key  # 지도 필드 Places Autocomplete용 (선택)
 ```
 
 ## 마이그레이션 히스토리
@@ -79,3 +83,40 @@ NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_key  # 지도 필드 Places Autocomplete용
 3. CHECK 재확장 → map, youtube 추가
 4. `notification_email`, `theme_color` 컬럼 추가 (ALTER TABLE ADD COLUMN IF NOT EXISTS)
 5. CHECK 재확장 → text_block, image, divider 추가
+6. `is_published(boolean)`, `deadline(timestamptz)`, `max_submissions(int)` 컬럼 추가
+
+```sql
+-- 마이그레이션 6: 공개 설정 컬럼
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS is_published boolean DEFAULT true;
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS deadline timestamptz;
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS max_submissions int;
+
+-- 마이그레이션 7: 웹훅 + Auth
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS webhook_url text;
+
+-- Auth RLS (Supabase Auth 활성화 후 실행)
+DROP POLICY IF EXISTS anon_insert_projects ON projects;
+DROP POLICY IF EXISTS anon_update_projects ON projects;
+DROP POLICY IF EXISTS anon_delete_projects ON projects;
+
+CREATE POLICY auth_insert_projects ON projects FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY auth_update_projects ON projects FOR UPDATE TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY auth_delete_projects ON projects FOR DELETE TO authenticated USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS anon_select_submissions ON submissions;
+CREATE POLICY auth_select_submissions ON submissions FOR SELECT TO authenticated
+  USING (project_id IN (SELECT id FROM projects WHERE user_id = auth.uid()));
+
+-- user_id 자동 설정 트리거
+CREATE OR REPLACE FUNCTION set_user_id()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.user_id = auth.uid();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER projects_set_user_id
+  BEFORE INSERT ON projects
+  FOR EACH ROW EXECUTE FUNCTION set_user_id();
+```

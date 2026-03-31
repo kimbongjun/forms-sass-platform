@@ -11,6 +11,8 @@ interface SubmitBody {
   fields: Pick<FormField, 'id' | 'label' | 'type'>[]
 }
 
+const INPUT_TYPES = ['text', 'email', 'textarea', 'checkbox', 'select', 'radio', 'checkbox_group']
+
 export async function POST(req: NextRequest) {
   try {
     const body: SubmitBody = await req.json()
@@ -20,27 +22,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'projectId is required' }, { status: 400 })
     }
 
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     // ── 0. 제출 제한 검사 ────────────────────────────────────────────────────
     const { data: project } = await supabase
       .from('projects')
-      .select('title, notification_email, slug, is_published, deadline, max_submissions')
+      .select('title, notification_email, slug, is_published, deadline, max_submissions, webhook_url')
       .eq('id', projectId)
       .single()
 
     if (!project) {
       return NextResponse.json({ error: '존재하지 않는 폼입니다.' }, { status: 404 })
     }
-
     if (project.is_published === false) {
       return NextResponse.json({ error: '비공개 폼입니다.' }, { status: 403 })
     }
-
     if (project.deadline && new Date(project.deadline) < new Date()) {
       return NextResponse.json({ error: '제출 마감된 폼입니다.' }, { status: 403 })
     }
-
     if (project.max_submissions) {
       const { count } = await supabase
         .from('submissions')
@@ -60,18 +59,38 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `제출 저장 실패: ${insertErr.message}` }, { status: 500 })
     }
 
-    // ── 2. 이메일 발송 ───────────────────────────────────────────────────────
-    const INPUT_TYPES = ['text', 'email', 'textarea', 'checkbox', 'select', 'radio', 'checkbox_group']
+    const inputFields = fields.filter((f) => INPUT_TYPES.includes(f.type))
 
-    if (project?.notification_email && process.env.RESEND_API_KEY) {
-      const rows = fields
-        .filter((f) => INPUT_TYPES.includes(f.type))
+    // ── 2. 웹훅 발송 ─────────────────────────────────────────────────────────
+    if (project.webhook_url) {
+      try {
+        await fetch(project.webhook_url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            projectId,
+            projectTitle: project.title,
+            submittedAt: new Date().toISOString(),
+            answers: Object.fromEntries(
+              inputFields.map((f) => [f.label || f.id, answers[f.id]])
+            ),
+          }),
+        })
+      } catch (webhookErr) {
+        console.error('[/api/submit] webhook error:', webhookErr)
+        // 웹훅 실패는 제출 자체를 막지 않음
+      }
+    }
+
+    // ── 3. 이메일 발송 ───────────────────────────────────────────────────────
+    if (project.notification_email && process.env.RESEND_API_KEY) {
+      const rows = inputFields
         .map((f) => {
           const val = answers[f.id]
           let display = ''
           if (Array.isArray(val)) display = val.join(', ')
           else if (typeof val === 'boolean') display = val ? '✅ 동의' : '❌ 미동의'
-          else display = val ?? '(미입력)'
+          else display = (val as string) ?? '(미입력)'
           return `
             <tr>
               <td style="padding:10px 14px;border-bottom:1px solid #f0f0f0;color:#555;font-size:13px;width:38%;vertical-align:top">${f.label || '(제목 없음)'}</td>
