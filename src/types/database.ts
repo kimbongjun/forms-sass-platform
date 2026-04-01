@@ -1,3 +1,15 @@
+import type { Locale, LocaleStrings } from '@/constants/locale'
+
+export type { Locale }
+
+export interface LocaleSettings {
+  enabled: boolean
+  default_locale: Locale
+  available_locales: Locale[]
+  /** Per-locale string overrides (partial — only overridden keys needed) */
+  overrides: Partial<Record<Locale, Partial<LocaleStrings>>>
+}
+
 export type FieldType =
   | 'text'
   | 'email'
@@ -12,16 +24,18 @@ export type FieldType =
   | 'text_block'
   | 'image'
   | 'divider'
+  | 'table'
 
 export interface FormField {
   id: string
   project_id?: string
   label: string
+  description?: string  // 필드 상세 설명 (레이블 아래 표시)
   type: FieldType
   required: boolean
   order_index: number
-  options?: string[]   // select / radio / checkbox_group 의 선택지
-  content?: string     // html 타입의 WYSIWYG HTML 내용, map/youtube URL, text_block 텍스트, image URL
+  options?: string[]   // select / radio / checkbox_group
+  content?: string     // html, map/youtube URL, text_block text, image URL, table JSON
 }
 
 export interface Project {
@@ -36,6 +50,11 @@ export interface Project {
   deadline?: string | null
   max_submissions?: number | null
   webhook_url?: string | null
+  submission_message?: string | null
+  admin_email_template?: string | null
+  user_email_template?: string | null
+  thumbnail_url?: string | null
+  locale_settings?: LocaleSettings | null
   created_at?: string
 }
 

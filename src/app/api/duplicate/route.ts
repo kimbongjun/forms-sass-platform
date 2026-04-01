@@ -35,6 +35,11 @@ export async function POST(req: NextRequest) {
         deadline: null,
         max_submissions: null,
         webhook_url: original.webhook_url,
+        submission_message: original.submission_message,
+        admin_email_template: original.admin_email_template,
+        user_email_template: original.user_email_template,
+        thumbnail_url: original.thumbnail_url ?? null,
+        locale_settings: original.locale_settings ?? null,
         user_id: user?.id,
       })
       .select('id')

@@ -13,6 +13,71 @@ interface SubmitBody {
 
 const INPUT_TYPES = ['text', 'email', 'textarea', 'checkbox', 'select', 'radio', 'checkbox_group']
 
+// ── 이메일 공통 래퍼 HTML ────────────────────────────────────────────────────
+function wrapEmailLayout(innerHtml: string, title: string): string {
+  return `
+    <div style="font-family:sans-serif;max-width:600px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden">
+      <div style="background:#111;padding:20px 24px">
+        <p style="margin:0;color:#fff;font-size:18px;font-weight:700">${title}</p>
+      </div>
+      <div style="padding:24px">
+        ${innerHtml}
+      </div>
+    </div>`
+}
+
+// ── 응답 테이블 HTML 생성 ────────────────────────────────────────────────────
+function buildAnswersTable(
+  inputFields: Pick<FormField, 'id' | 'label' | 'type'>[],
+  answers: Record<string, string | boolean | string[]>
+): string {
+  const rows = inputFields
+    .map((f) => {
+      const val = answers[f.id]
+      let display = ''
+      if (Array.isArray(val)) display = val.join(', ')
+      else if (typeof val === 'boolean') display = val ? '✅ 동의' : '❌ 미동의'
+      else display = (val as string) ?? '(미입력)'
+      return `
+        <tr>
+          <td style="padding:10px 14px;border-bottom:1px solid #f0f0f0;color:#555;font-size:13px;width:38%;vertical-align:top">${f.label || '(제목 없음)'}</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #f0f0f0;color:#111;font-size:13px">${display}</td>
+        </tr>`
+    })
+    .join('')
+
+  return `
+    <table style="width:100%;border-collapse:collapse;border:1px solid #f0f0f0;border-radius:8px;overflow:hidden">
+      <thead>
+        <tr style="background:#f9fafb">
+          <th style="padding:10px 14px;text-align:left;font-size:12px;color:#888;font-weight:600;border-bottom:1px solid #f0f0f0">항목</th>
+          <th style="padding:10px 14px;text-align:left;font-size:12px;color:#888;font-weight:600;border-bottom:1px solid #f0f0f0">응답</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`
+}
+
+// ── 기본 관리자 템플릿 ───────────────────────────────────────────────────────
+function defaultAdminTemplate(formTitle: string, submittedAt: string, answersTable: string): string {
+  return `
+    <p style="margin:0 0 16px;font-size:14px;color:#374151">새로운 폼 응답이 도착했습니다.</p>
+    <p style="margin:0 0 4px;font-size:13px;color:#6b7280"><strong>폼:</strong> ${formTitle}</p>
+    <p style="margin:0 0 20px;font-size:13px;color:#6b7280"><strong>제출 시각:</strong> ${submittedAt}</p>
+    ${answersTable}`
+}
+
+// ── 템플릿 변수 치환 ─────────────────────────────────────────────────────────
+function renderTemplate(
+  template: string,
+  vars: { form_title: string; submitted_at: string; answers_table: string }
+): string {
+  return template
+    .replace(/\{\{form_title\}\}/g, vars.form_title)
+    .replace(/\{\{submitted_at\}\}/g, vars.submitted_at)
+    .replace(/\{\{answers_table\}\}/g, vars.answers_table)
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body: SubmitBody = await req.json()
@@ -27,7 +92,7 @@ export async function POST(req: NextRequest) {
     // ── 0. 제출 제한 검사 ────────────────────────────────────────────────────
     const { data: project } = await supabase
       .from('projects')
-      .select('title, notification_email, slug, is_published, deadline, max_submissions, webhook_url')
+      .select('title, notification_email, slug, is_published, deadline, max_submissions, webhook_url, admin_email_template, user_email_template')
       .eq('id', projectId)
       .single()
 
@@ -78,62 +143,67 @@ export async function POST(req: NextRequest) {
         })
       } catch (webhookErr) {
         console.error('[/api/submit] webhook error:', webhookErr)
-        // 웹훅 실패는 제출 자체를 막지 않음
       }
     }
 
-    // ── 3. 이메일 발송 ───────────────────────────────────────────────────────
-    if (project.notification_email && process.env.RESEND_API_KEY) {
-      const rows = inputFields
-        .map((f) => {
-          const val = answers[f.id]
-          let display = ''
-          if (Array.isArray(val)) display = val.join(', ')
-          else if (typeof val === 'boolean') display = val ? '✅ 동의' : '❌ 미동의'
-          else display = (val as string) ?? '(미입력)'
-          return `
-            <tr>
-              <td style="padding:10px 14px;border-bottom:1px solid #f0f0f0;color:#555;font-size:13px;width:38%;vertical-align:top">${f.label || '(제목 없음)'}</td>
-              <td style="padding:10px 14px;border-bottom:1px solid #f0f0f0;color:#111;font-size:13px">${display}</td>
-            </tr>`
-        })
-        .join('')
-
-      const submittedAt = new Date().toLocaleString('ko-KR', {
-        timeZone: 'Asia/Seoul',
-        year: 'numeric', month: 'long', day: 'numeric',
-        hour: '2-digit', minute: '2-digit',
-      })
-
-      const html = `
-        <div style="font-family:sans-serif;max-width:600px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden">
-          <div style="background:#111;padding:20px 24px">
-            <p style="margin:0;color:#fff;font-size:18px;font-weight:700">📋 새 폼 응답이 도착했습니다</p>
-            <p style="margin:6px 0 0;color:#aaa;font-size:13px">${project.title}</p>
-          </div>
-          <div style="padding:20px 24px">
-            <table style="width:100%;border-collapse:collapse;border:1px solid #f0f0f0;border-radius:8px;overflow:hidden">
-              <thead>
-                <tr style="background:#f9fafb">
-                  <th style="padding:10px 14px;text-align:left;font-size:12px;color:#888;font-weight:600;border-bottom:1px solid #f0f0f0">항목</th>
-                  <th style="padding:10px 14px;text-align:left;font-size:12px;color:#888;font-weight:600;border-bottom:1px solid #f0f0f0">응답</th>
-                </tr>
-              </thead>
-              <tbody>${rows}</tbody>
-            </table>
-          </div>
-          <div style="padding:12px 24px 20px;border-top:1px solid #f0f0f0">
-            <p style="margin:0;font-size:12px;color:#999">제출 시각: ${submittedAt}</p>
-          </div>
-        </div>`
-
-      await resend.emails.send({
-        from: process.env.RESEND_FROM_EMAIL ?? 'onboarding@resend.dev',
-        to: project.notification_email,
-        subject: `[폼 응답] ${project.title}`,
-        html,
-      })
+    // ── 3. 이메일 발송 준비 ──────────────────────────────────────────────────
+    if (!process.env.RESEND_API_KEY || (!project.notification_email && !project.user_email_template)) {
+      return NextResponse.json({ ok: true })
     }
+
+    const submittedAt = new Date().toLocaleString('ko-KR', {
+      timeZone: 'Asia/Seoul',
+      year: 'numeric', month: 'long', day: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    })
+
+    const answersTable = buildAnswersTable(inputFields, answers)
+    const templateVars = {
+      form_title: project.title,
+      submitted_at: submittedAt,
+      answers_table: answersTable,
+    }
+
+    const from = process.env.RESEND_FROM_EMAIL ?? 'onboarding@resend.dev'
+    const emailPromises: Promise<unknown>[] = []
+
+    // ── 3-1. 관리자 이메일 ────────────────────────────────────────────────────
+    if (project.notification_email) {
+      const bodyHtml = project.admin_email_template
+        ? renderTemplate(project.admin_email_template, templateVars)
+        : defaultAdminTemplate(project.title, submittedAt, answersTable)
+
+      emailPromises.push(
+        resend.emails.send({
+          from,
+          to: project.notification_email,
+          subject: `[폼 응답] ${project.title}`,
+          html: wrapEmailLayout(bodyHtml, `📋 새 폼 응답 — ${project.title}`),
+        }).catch((err) => console.error('[/api/submit] admin email error:', err))
+      )
+    }
+
+    // ── 3-2. 응답자 이메일 ────────────────────────────────────────────────────
+    if (project.user_email_template) {
+      // 폼에서 email 타입 필드의 응답값 추출
+      const emailField = fields.find((f) => f.type === 'email')
+      const userEmail = emailField ? (answers[emailField.id] as string | undefined) : undefined
+
+      if (userEmail && userEmail.includes('@')) {
+        const bodyHtml = renderTemplate(project.user_email_template, templateVars)
+
+        emailPromises.push(
+          resend.emails.send({
+            from,
+            to: userEmail,
+            subject: `[확인] ${project.title} 응답이 접수되었습니다`,
+            html: wrapEmailLayout(bodyHtml, `✅ 응답이 접수되었습니다`),
+          }).catch((err) => console.error('[/api/submit] user email error:', err))
+        )
+      }
+    }
+
+    await Promise.all(emailPromises)
 
     return NextResponse.json({ ok: true })
   } catch (err) {

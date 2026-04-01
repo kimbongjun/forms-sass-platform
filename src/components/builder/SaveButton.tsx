@@ -3,47 +3,40 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
-import { createClient } from '@/utils/supabase/client'
-import { uploadBanner } from '@/utils/supabase/storage'
-import type { FormField } from '@/types/database'
+import type { FormField, LocaleSettings } from '@/types/database'
 
 interface SaveButtonProps {
   title: string
-  notificationEmail: string
-  isPublished: boolean
-  deadline: string
-  maxSubmissions: string
-  webhookUrl: string
   customSlug: string
+  notificationEmail: string | null
   themeColor: string
+  isPublished: boolean
+  deadline: string | null
+  maxSubmissions: number | null
+  webhookUrl: string | null
+  submissionMessage: string | null
+  adminEmailTemplate: string | null
+  userEmailTemplate: string | null
+  thumbnailUrl: string | null
+  localeSettings: LocaleSettings
   fields: FormField[]
-  bannerFile: File | null
   onError: (message: string) => void
 }
 
 function generateSlug(title: string, custom: string): string {
   const rand = Math.random().toString(36).slice(2, 8)
   if (custom.trim()) {
-    return custom
-      .toLowerCase()
-      .replace(/[^a-z0-9-]/g, '')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '')
-      || `form-${rand}`
+    return custom.toLowerCase().replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '') || `form-${rand}`
   }
-  const base = title
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .trim()
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .slice(0, 40)
+  const base = title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-').replace(/-+/g, '-').slice(0, 40)
   return base ? `${base}-${rand}` : `form-${rand}`
 }
 
 export default function SaveButton({
-  title, notificationEmail, isPublished, deadline, maxSubmissions,
-  webhookUrl, customSlug, themeColor, fields, bannerFile, onError,
+  title, customSlug, notificationEmail, themeColor, isPublished,
+  deadline, maxSubmissions, webhookUrl, submissionMessage,
+  adminEmailTemplate, userEmailTemplate, thumbnailUrl, localeSettings,
+  fields, onError,
 }: SaveButtonProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -56,12 +49,8 @@ export default function SaveButton({
 
     setLoading(true)
     onError('')
-    const supabase = createClient()
 
     try {
-      let bannerUrl: string | null = null
-      if (bannerFile) bannerUrl = await uploadBanner(supabase, bannerFile)
-
       const slug = generateSlug(title, customSlug)
       const res = await fetch('/api/projects', {
         method: 'POST',
@@ -69,15 +58,19 @@ export default function SaveButton({
         body: JSON.stringify({
           title: title.trim(),
           slug,
-          bannerUrl,
-          notificationEmail: notificationEmail.trim() || null,
-          themeColor: themeColor || '#111827',
+          notificationEmail,
+          themeColor,
           isPublished,
-          deadline: deadline || null,
-          maxSubmissions: maxSubmissions ? parseInt(maxSubmissions, 10) : null,
-          webhookUrl: webhookUrl.trim() || null,
+          deadline,
+          maxSubmissions,
+          webhookUrl,
+          submissionMessage,
+          adminEmailTemplate,
+          userEmailTemplate,
+          thumbnailUrl,
+          localeSettings,
           fields,
-        })
+        }),
       })
 
       if (!res.ok) {

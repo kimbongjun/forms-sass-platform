@@ -15,6 +15,11 @@
 | deadline | timestamptz | 제출 마감일시, NULL이면 제한 없음 |
 | max_submissions | int | 최대 응답 수, NULL이면 제한 없음 |
 | webhook_url | text | 제출 시 POST 발송할 외부 URL |
+| submission_message | text | 제출 완료 후 표시할 커스텀 메시지 (NULL이면 기본값) |
+| admin_email_template | text | 관리자 수신 이메일 HTML 템플릿 (NULL이면 기본 템플릿) |
+| user_email_template | text | 응답자 수신 이메일 HTML 템플릿 (NULL이면 미발송) |
+| thumbnail_url | text | 폼 썸네일 이미지 Storage 공개 URL |
+| locale_settings | jsonb | 다국어 설정 (LocaleSettings 타입, NULL이면 기본 ko) |
 | user_id | uuid | Supabase Auth uid, 소유권 판별에 사용 |
 | created_at | timestamptz | now() |
 
@@ -24,6 +29,7 @@
 | id | uuid PK | |
 | project_id | uuid FK | → projects ON DELETE CASCADE |
 | label | text | 필드 제목 |
+| description | text | 필드 상세 설명 (레이블 아래 표시, NULL이면 미표시) |
 | type | text CHECK | FieldType 10종 참조 |
 | required | boolean | |
 | order_index | int | DnD 순서 |
@@ -32,7 +38,7 @@
 | created_at | timestamptz | |
 
 **FieldType CHECK:**
-`'text','email','textarea','checkbox','select','radio','checkbox_group','html','map','youtube','text_block','image','divider'`
+`'text','email','textarea','checkbox','select','radio','checkbox_group','html','map','youtube','text_block','image','divider','table'`
 
 ### submissions
 | 컬럼 | 타입 | 비고 |
@@ -67,7 +73,8 @@ CREATE POLICY anon_select_submissions ON submissions FOR SELECT TO anon USING (t
 - 버킷명: `banners` (public)
 - 배너 경로: `project-banners/{uuid}.{ext}` → `uploadBanner(supabase, file)`
 - 이미지 필드 경로: `field-images/{uuid}.{ext}` → `uploadFieldImage(supabase, file)`
-- 두 함수 모두 `src/utils/supabase/storage.ts` 에 정의, Public URL 반환
+- 썸네일 경로: `thumbnails/{uuid}.{ext}` → `uploadThumbnail(supabase, file)`
+- 세 함수 모두 `src/utils/supabase/storage.ts` 에 정의, Public URL 반환
 
 ## 환경변수 (.env.local)
 ```
@@ -90,6 +97,25 @@ RESEND_FROM_EMAIL=onboarding@resend.dev   # 도메인 인증 후 변경
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS is_published boolean DEFAULT true;
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS deadline timestamptz;
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS max_submissions int;
+
+-- 마이그레이션 9: 이메일 템플릿
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS admin_email_template text;
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS user_email_template text;
+
+-- 마이그레이션 8: submission_message + table 타입
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS submission_message text;
+
+-- form_fields CHECK 확장 (table 타입 추가)
+ALTER TABLE form_fields DROP CONSTRAINT IF EXISTS form_fields_type_check;
+ALTER TABLE form_fields ADD CONSTRAINT form_fields_type_check
+  CHECK (type IN ('text','email','textarea','checkbox','select','radio','checkbox_group','html','map','youtube','text_block','image','divider','table'));
+
+-- 마이그레이션 10: 썸네일 + 다국어 설정
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS thumbnail_url text;
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS locale_settings jsonb;
+
+-- 마이그레이션 11: 필드 상세 설명
+ALTER TABLE form_fields ADD COLUMN IF NOT EXISTS description text;
 
 -- 마이그레이션 7: 웹훅 + Auth
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS webhook_url text;

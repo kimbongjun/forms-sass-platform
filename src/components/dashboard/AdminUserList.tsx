@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import {
   Shield, User, RotateCcw, ChevronDown,
-  Loader2, CheckCircle2, X, Search,
+  Loader2, CheckCircle2, X, Search, Trash2,
 } from 'lucide-react'
 
 interface UserRow {
@@ -29,6 +29,11 @@ export default function AdminUserList() {
 
   // 역할 변경
   const [roleChangingId, setRoleChangingId] = useState<string | null>(null)
+
+  // 회원 삭제
+  const [deleteTarget, setDeleteTarget] = useState<UserRow | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   useEffect(() => {
     fetchUsers()
@@ -85,6 +90,27 @@ export default function AdminUserList() {
       setResetError(err instanceof Error ? err.message : '비밀번호 초기화에 실패했습니다.')
     } finally {
       setResetLoading(false)
+    }
+  }
+
+  async function handleDeleteUser() {
+    if (!deleteTarget) return
+    setDeleteError('')
+    setDeleteLoading(true)
+    try {
+      const res = await fetch('/api/admin/delete-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: deleteTarget.id }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error)
+      setUsers((prev) => prev.filter((u) => u.id !== deleteTarget.id))
+      setDeleteTarget(null)
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : '삭제에 실패했습니다.')
+    } finally {
+      setDeleteLoading(false)
     }
   }
 
@@ -171,6 +197,47 @@ export default function AdminUserList() {
                 </div>
               </form>
             )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── 회원 삭제 확인 모달 ──────────────────────────────────────────────────────
+
+  if (deleteTarget) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="w-full max-w-sm rounded-2xl bg-white shadow-xl">
+          <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+            <div className="flex items-center gap-2 text-red-600">
+              <Trash2 className="h-4 w-4" />
+              <p className="text-sm font-semibold">회원 삭제</p>
+            </div>
+            <button type="button" onClick={() => { setDeleteTarget(null); setDeleteError('') }}
+              className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="p-5 space-y-4">
+            <p className="text-sm text-gray-700">
+              <span className="font-medium text-gray-900 break-all">{deleteTarget.email}</span> 계정을 삭제하면
+              해당 사용자의 모든 폼과 응답 데이터도 함께 삭제됩니다. 이 작업은 되돌릴 수 없습니다.
+            </p>
+            {deleteError && (
+              <p className="rounded-lg bg-red-50 px-4 py-2.5 text-sm text-red-600">{deleteError}</p>
+            )}
+            <div className="flex gap-2 pt-1">
+              <button type="button" onClick={() => { setDeleteTarget(null); setDeleteError('') }}
+                className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                취소
+              </button>
+              <button type="button" onClick={handleDeleteUser} disabled={deleteLoading}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-600 py-2.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50">
+                {deleteLoading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                삭제
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -273,6 +340,16 @@ export default function AdminUserList() {
                   >
                     <RotateCcw className="h-3.5 w-3.5" />
                     비밀번호 초기화
+                  </button>
+
+                  {/* 회원 삭제 */}
+                  <button
+                    type="button"
+                    onClick={() => { setDeleteTarget(u); setDeleteError('') }}
+                    className="flex shrink-0 items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:border-red-300 hover:bg-red-50 transition-colors"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    삭제
                   </button>
                 </div>
               ))}

@@ -5,31 +5,62 @@ import { useRouter } from 'next/navigation'
 import { Loader2, Eye, EyeOff } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 
+const ALLOWED_DOMAIN = 'classys.com'
+
 type Tab = 'login' | 'signup'
 
 export default function AuthForm() {
   const router = useRouter()
   const [tab, setTab] = useState<Tab>('login')
-  const [email, setEmail] = useState('')
+
+  // 이메일 = username + @classys.com
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [passwordConfirm, setPasswordConfirm] = useState('')
+  const [name, setName] = useState('')
+  const [team, setTeam] = useState('')
   const [showPw, setShowPw] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
 
+  const email = username.trim() ? `${username.trim()}@${ALLOWED_DOMAIN}` : ''
+
   const inputClass =
     'w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gray-900'
+
+  function handleUsernameChange(value: string) {
+    // @ 이후 입력 방지, 소문자·숫자·점·하이픈·언더스코어만 허용
+    setUsername(value.replace(/@.*/, '').replace(/[^a-zA-Z0-9._-]/g, ''))
+    setError('')
+  }
+
+  function resetForm() {
+    setUsername('')
+    setPassword('')
+    setPasswordConfirm('')
+    setName('')
+    setTeam('')
+    setError('')
+    setMessage('')
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
     setMessage('')
 
-    if (tab === 'signup' && password !== passwordConfirm) {
-      setError('비밀번호가 일치하지 않습니다.')
+    if (!username.trim()) {
+      setError('이메일 아이디를 입력해주세요.')
       return
     }
+
+    if (tab === 'signup') {
+      if (!name.trim()) { setError('이름을 입력해주세요.'); return }
+      if (!team.trim()) { setError('소속팀을 입력해주세요.'); return }
+      if (password !== passwordConfirm) { setError('비밀번호가 일치하지 않습니다.'); return }
+    }
+
     if (password.length < 6) {
       setError('비밀번호는 6자 이상이어야 합니다.')
       return
@@ -48,10 +79,14 @@ export default function AuthForm() {
         const { error: err } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: `${location.origin}/auth/callback` },
+          options: {
+            data: { name: name.trim(), team: team.trim() },
+            emailRedirectTo: `${location.origin}/auth/callback`,
+          },
         })
         if (err) throw err
-        setMessage('가입 확인 이메일을 발송했습니다. 이메일을 확인해주세요.')
+        setMessage(`${email} 으로 가입 확인 이메일을 발송했습니다. 이메일을 확인해주세요.`)
+        resetForm()
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : '오류가 발생했습니다.'
@@ -71,7 +106,7 @@ export default function AuthForm() {
           <button
             key={t}
             type="button"
-            onClick={() => { setTab(t); setError(''); setMessage('') }}
+            onClick={() => { setTab(t); resetForm() }}
             className={[
               'flex-1 py-3.5 text-sm font-medium transition-colors',
               tab === t
@@ -85,18 +120,54 @@ export default function AuthForm() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4 p-8">
+
+        {/* 이름 (회원가입 전용) */}
+        {tab === 'signup' && (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-gray-500">이름 <span className="text-red-400">*</span></label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="홍길동"
+                required
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-gray-500">소속팀 <span className="text-red-400">*</span></label>
+              <input
+                type="text"
+                value={team}
+                onChange={(e) => setTeam(e.target.value)}
+                placeholder="국내마컴팀"
+                required
+                className={inputClass}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* 이메일 */}
         <div>
           <label className="mb-1.5 block text-xs font-medium text-gray-500">이메일</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            required
-            className={inputClass}
-          />
+          <div className="flex overflow-hidden rounded-xl border border-gray-200 focus-within:border-transparent focus-within:ring-2 focus-within:ring-gray-900">
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => handleUsernameChange(e.target.value)}
+              placeholder="아이디"
+              required
+              className="min-w-0 flex-1 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none"
+            />
+            <span className="flex shrink-0 items-center border-l border-gray-200 bg-gray-50 px-3 text-sm text-gray-500">
+              @{ALLOWED_DOMAIN}
+            </span>
+          </div>
         </div>
 
+        {/* 비밀번호 */}
         <div>
           <label className="mb-1.5 block text-xs font-medium text-gray-500">비밀번호</label>
           <div className="relative">
@@ -118,6 +189,7 @@ export default function AuthForm() {
           </div>
         </div>
 
+        {/* 비밀번호 확인 (회원가입 전용) */}
         {tab === 'signup' && (
           <div>
             <label className="mb-1.5 block text-xs font-medium text-gray-500">비밀번호 확인</label>

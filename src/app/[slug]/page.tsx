@@ -89,6 +89,8 @@ export default async function SlugPage({ params }: SlugPageProps) {
           projectId={project.id}
           fields={fields ?? []}
           themeColor={project.theme_color ?? '#111827'}
+          submissionMessage={project.submission_message}
+          localeSettings={project.locale_settings ?? null}
         />
       </div>
     </div>

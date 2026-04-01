@@ -31,7 +31,11 @@ export default async function AccountPage() {
       </header>
 
       <main className="mx-auto max-w-2xl px-6 py-8">
-        <AccountForm email={user.email ?? ''} />
+        <AccountForm
+          email={user.email ?? ''}
+          initialName={user.user_metadata?.name ?? ''}
+          initialTeam={user.user_metadata?.team ?? ''}
+        />
       </main>
     </div>
   )

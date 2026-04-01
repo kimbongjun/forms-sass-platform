@@ -113,9 +113,63 @@
 | 이미지 | URL 입력 방식 | Storage 업로드 복잡도 제거 |
 | Tiptap SSR | `dynamic(ssr:false)` + `immediatelyRender:false` | hydration mismatch 방지 |
 
-## 향후 작업 (미구현)
+### 제출 완료 메시지
+- [x] `projects.submission_message` 컬럼 (마이그레이션 8)
+- [x] FormBuilder / EditFormBuilder — "폼 설정" 섹션 내 완료 메시지 텍스트 입력
+- [x] `PublicForm.tsx` — `submissionMessage` prop 수신, 커스텀/기본 메시지 표시
 
-- [ ] **이메일 발송 실패 처리** — Resend 오류 시 로그 저장 또는 재시도
-- [ ] **다국어 지원** — 폼 UI 언어 설정
-- [ ] **submission 완료 메시지 설정** — 폼 편집 화면에서 Submission 완료 후 메시지를 설정할 수 있도록 적용
-- [ ] **폼 옵션의 위치 수정** — 응답 알림 이메일, 제출 마감일, 최대 응답 수, 웹훅 URL 등 글로벌 옵션들은 레이아웃 분리하여 적용
+### 메뉴 개선
+- [x] FormBuilder / EditFormBuilder — 글로벌 옵션(알림 이메일, 마감일, 최대 응답 수, 웹훅, 완료 메시지)을 접이식 "폼 설정" 카드로 분리
+
+### 필드 유형 UX 개선
+- [x] 사이드바 2열 그리드 레이아웃 (입력 / 콘텐츠 섹션 분리)
+- [x] HTML 타입 신규 추가 불가 (기존 데이터 렌더링은 유지)
+- [x] TABLE 타입 추가 — 행/열 편집 UI, `content`에 JSON 저장
+- [x] `PublicForm.tsx` — TABLE 타입 렌더링 (헤더 + 행 테이블)
+
+### 메뉴 탭 구조 개편
+- [x] FormBuilder / EditFormBuilder — **폼 편집** 탭 (사이드바 + 캔버스) / **폼 설정** 탭 (단일 컬럼) 분리
+- [x] 폼 설정 탭: 테마 컬러, 운영 설정 (알림 이메일·마감일·응답수·웹훅·완료메시지), 이메일 템플릿
+
+### 이메일 템플릿
+- [x] `projects.admin_email_template` — 관리자 수신 HTML 템플릿 (NULL = 기본 템플릿)
+- [x] `projects.user_email_template` — 응답자 수신 HTML 템플릿 (NULL = 미발송)
+- [x] 템플릿 변수: `{{form_title}}`, `{{submitted_at}}`, `{{answers_table}}`
+- [x] `api/submit/route.ts` — 관리자 이메일: 커스텀/기본 템플릿 선택 발송
+- [x] `api/submit/route.ts` — 응답자 이메일: email 필드 값 추출 → user_email_template 있을 때만 발송
+- [x] `api/duplicate/route.ts` — 복제 시 템플릿 필드 복사
+- [x] Tiptap WYSIWYG 에디터로 폼 설정 탭 내에서 편집
+
+### 응답 탭 (EditFormBuilder 인라인)
+- [x] `BuilderTabBar.tsx` — edit / settings / responses 탭 네비게이션 (`showResponses` prop)
+- [x] `ResponsesTab.tsx` — 인라인 응답 현황 (최근 10건 + 통계 바 + 전체보기 링크 + CSV 내보내기 링크)
+- [x] `EditFormBuilder.tsx` — 응답 탭 연결
+
+### 이미지 필드 레이블 제거
+- [x] `FieldCard.tsx` — 이미지 타입에서 레이블 편집 영역 숨김 (`showLabel = isInputType` only)
+
+### 다국어 지원
+- [x] `constants/locale.ts` — Locale 타입(ko/en/ja/zh), LocaleStrings 인터페이스, DEFAULT_LOCALE_STRINGS, resolveLocaleStrings()
+- [x] `types/database.ts` — LocaleSettings 인터페이스, Project.locale_settings 필드 추가
+- [x] `SettingsPanel.tsx` — 다국어 섹션 (활성화 토글, 언어 선택, 기본 언어, 언어별 텍스트 오버라이드)
+- [x] `PublicForm.tsx` — 언어 전환 버튼, resolveLocaleStrings() 적용
+- [x] `api/projects/route.ts` — locale_settings INSERT
+- [x] `api/duplicate/route.ts` — locale_settings 복제
+
+### 폼 썸네일
+- [x] `utils/supabase/storage.ts` — uploadThumbnail() 함수 추가
+- [x] `types/database.ts` — Project.thumbnail_url 필드 추가
+- [x] `SettingsPanel.tsx` — 썸네일 업로드 UI (파일 선택 + 미리보기 + 제거)
+- [x] `api/projects/route.ts` — thumbnail_url INSERT
+- [x] `api/duplicate/route.ts` — thumbnail_url 복제
+
+### 코드 구조 개편 (훅 기반 리팩토링)
+- [x] `hooks/useFormFields.ts` — 필드 상태 훅 (add/remove/update/drag)
+- [x] `hooks/useFormSettings.ts` — 설정 상태 훅 (toApiPayload / toUpdatePayload)
+- [x] `constants/builder.ts` — 공유 상수 추출 (INPUT_TYPES, CONTENT_TYPES, PRESET_COLORS 등)
+- [x] `BuilderTabBar.tsx` / `BuilderSidebar.tsx` / `BuilderCanvas.tsx` — 분리된 빌더 서브컴포넌트
+- [x] `SettingsPanel.tsx` — 설정 탭 전용 컴포넌트
+- [x] `FormBuilder.tsx` / `EditFormBuilder.tsx` — 훅 기반으로 ~70라인으로 축소
+
+## 향후 작업 (미구현)
+- 없음 (모든 계획된 기능 구현 완료)

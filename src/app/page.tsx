@@ -12,7 +12,7 @@ export default async function Home() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-10 shadow-sm text-center space-y-6">
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold text-gray-900">MKT Form Builder</h1>
+          <h1 className="text-3xl font-bold text-gray-900">CLASSYS Form & Survey Builder</h1>
           <p className="text-gray-500 text-sm">
             폼과 배너를 직접 구성해 고유 링크를 생성하고 공유하세요.
           </p>

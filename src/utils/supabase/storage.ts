@@ -1,54 +1,35 @@
-// 01-SUPABASE-SCHEMA.md: uploadBanner 유틸리티
-// Bucket: banners / Path: project-banners/{uuid}.{ext}
+// Bucket: banners
+//   project-banners/{uuid}.{ext}  — 프로젝트 배너
+//   field-images/{uuid}.{ext}     — 필드 이미지
+//   thumbnails/{uuid}.{ext}       — 폼 썸네일
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 
-/**
- * 이미지 파일을 Supabase Storage의 banners 버킷에 업로드하고
- * Public URL을 반환합니다.
- */
-export async function uploadBanner(
-  supabase: SupabaseClient,
-  file: File
-): Promise<string> {
-  const ext = file.name.split('.').pop() ?? 'jpg'
-  const uuid = crypto.randomUUID()
-  const path = `project-banners/${uuid}.${ext}`
-
+async function uploadToStorage(supabase: SupabaseClient, path: string, file: File, label: string): Promise<string> {
   const { error } = await supabase.storage
     .from('banners')
     .upload(path, file, { cacheControl: '3600', upsert: false })
 
   if (error) {
-    console.error('[uploadBanner] Storage error:', error)
-    throw new Error(`배너 업로드 실패: ${error.message}`)
+    console.error(`[storage] ${label} 업로드 실패:`, error)
+    throw new Error(`${label} 업로드 실패: ${error.message}`)
   }
 
   const { data } = supabase.storage.from('banners').getPublicUrl(path)
   return data.publicUrl
 }
 
-/**
- * 이미지 필드 파일을 Supabase Storage의 banners 버킷에 업로드하고
- * Public URL을 반환합니다. (field-images/ 경로에 저장)
- */
-export async function uploadFieldImage(
-  supabase: SupabaseClient,
-  file: File
-): Promise<string> {
+export async function uploadBanner(supabase: SupabaseClient, file: File): Promise<string> {
   const ext = file.name.split('.').pop() ?? 'jpg'
-  const uuid = crypto.randomUUID()
-  const path = `field-images/${uuid}.${ext}`
+  return uploadToStorage(supabase, `project-banners/${crypto.randomUUID()}.${ext}`, file, '배너')
+}
 
-  const { error } = await supabase.storage
-    .from('banners')
-    .upload(path, file, { cacheControl: '3600', upsert: false })
+export async function uploadFieldImage(supabase: SupabaseClient, file: File): Promise<string> {
+  const ext = file.name.split('.').pop() ?? 'jpg'
+  return uploadToStorage(supabase, `field-images/${crypto.randomUUID()}.${ext}`, file, '이미지')
+}
 
-  if (error) {
-    console.error('[uploadFieldImage] Storage error:', error)
-    throw new Error(`이미지 업로드 실패: ${error.message}`)
-  }
-
-  const { data } = supabase.storage.from('banners').getPublicUrl(path)
-  return data.publicUrl
+export async function uploadThumbnail(supabase: SupabaseClient, file: File): Promise<string> {
+  const ext = file.name.split('.').pop() ?? 'jpg'
+  return uploadToStorage(supabase, `thumbnails/${crypto.randomUUID()}.${ext}`, file, '썸네일')
 }

@@ -8,7 +8,7 @@ import {
   GripVertical, Trash2, Plus, X,
   Type, AtSign, AlignLeft, CheckSquare,
   ChevronDown, CircleDot, LayoutList, Code2,
-  MapPin, PlaySquare, AlignJustify, Image as ImageIcon, Minus, Upload, Loader2,
+  MapPin, PlaySquare, AlignJustify, Image as ImageIcon, Minus, Upload, Loader2, Table2,
 } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 import { uploadFieldImage } from '@/utils/supabase/storage'
@@ -39,6 +39,7 @@ export const FIELD_TYPE_META: Record<
   text_block:    { label: '텍스트 블록',  icon: <AlignJustify className="h-3.5 w-3.5" />,    color: 'bg-violet-100 text-violet-700' },
   image:         { label: '이미지',       icon: <ImageIcon className="h-3.5 w-3.5" />,        color: 'bg-sky-100 text-sky-700' },
   divider:       { label: '구분선',       icon: <Minus className="h-3.5 w-3.5" />,            color: 'bg-gray-100 text-gray-600' },
+  table:         { label: '표',           icon: <Table2 className="h-3.5 w-3.5" />,           color: 'bg-cyan-100 text-cyan-700' },
 }
 
 const MULTI_OPTION_TYPES: FieldType[] = ['select', 'radio', 'checkbox_group']
@@ -135,8 +136,51 @@ export default function FieldCard({ field, onUpdate, onRemove }: FieldCardProps)
   const isDivider = field.type === 'divider'
   const isMap = field.type === 'map'
   const isYoutube = field.type === 'youtube'
-  const showLabel = isInputType || isImage
+  const isTable = field.type === 'table'
+  const showLabel = isInputType
   const showRequired = isInputType
+
+  // ── Table helpers ─────────────────────────────────────────────────────────
+
+  function parseTable(content: string | undefined): { headers: string[]; rows: string[][] } {
+    try { return JSON.parse(content ?? '') } catch { return { headers: ['컬럼 1'], rows: [['']] } }
+  }
+
+  function commitTable(data: { headers: string[]; rows: string[][] }) {
+    onUpdate({ content: JSON.stringify(data) })
+  }
+
+  function addTableColumn() {
+    const { headers, rows } = parseTable(field.content)
+    commitTable({ headers: [...headers, `컬럼 ${headers.length + 1}`], rows: rows.map((r) => [...r, '']) })
+  }
+
+  function removeTableColumn(ci: number) {
+    const { headers, rows } = parseTable(field.content)
+    if (headers.length <= 1) return
+    commitTable({ headers: headers.filter((_, i) => i !== ci), rows: rows.map((r) => r.filter((_, i) => i !== ci)) })
+  }
+
+  function addTableRow() {
+    const { headers, rows } = parseTable(field.content)
+    commitTable({ headers, rows: [...rows, Array(headers.length).fill('')] })
+  }
+
+  function removeTableRow(ri: number) {
+    const { headers, rows } = parseTable(field.content)
+    if (rows.length <= 1) return
+    commitTable({ headers, rows: rows.filter((_, i) => i !== ri) })
+  }
+
+  function updateTableCell(ri: number, ci: number, value: string) {
+    const { headers, rows } = parseTable(field.content)
+    commitTable({ headers, rows: rows.map((r, rIdx) => rIdx === ri ? r.map((c, cIdx) => cIdx === ci ? value : c) : r) })
+  }
+
+  function updateTableHeader(ci: number, value: string) {
+    const { headers, rows } = parseTable(field.content)
+    commitTable({ headers: headers.map((h, i) => i === ci ? value : h), rows })
+  }
 
   // ── Options helpers ───────────────────────────────────────────────────────
 
@@ -160,6 +204,7 @@ export default function FieldCard({ field, onUpdate, onRemove }: FieldCardProps)
     <div
       ref={setNodeRef}
       style={style}
+      suppressHydrationWarning
       className={[
         'rounded-xl border bg-white shadow-sm transition-shadow',
         isDragging
@@ -174,6 +219,7 @@ export default function FieldCard({ field, onUpdate, onRemove }: FieldCardProps)
           type="button"
           {...attributes}
           {...listeners}
+          suppressHydrationWarning
           className="shrink-0 cursor-grab touch-none rounded p-1 text-gray-300 hover:bg-gray-100 hover:text-gray-500 active:cursor-grabbing"
         >
           <GripVertical className="h-4 w-4" />
@@ -218,6 +264,19 @@ export default function FieldCard({ field, onUpdate, onRemove }: FieldCardProps)
           <Trash2 className="h-4 w-4" />
         </button>
       </div>
+
+      {/* ── Description input ── */}
+      {showLabel && (
+        <div className="border-t border-gray-100 px-3 pb-2 pt-2">
+          <input
+            type="text"
+            value={field.description ?? ''}
+            onChange={(e) => onUpdate({ description: e.target.value })}
+            placeholder="상세 설명 (선택 사항)"
+            className="w-full rounded-lg border border-gray-100 bg-gray-50 px-3 py-1.5 text-xs text-gray-600 placeholder-gray-400 focus:border-transparent focus:bg-white focus:outline-none focus:ring-1 focus:ring-gray-900"
+          />
+        </div>
+      )}
 
       {/* ── Multi-option section ── */}
       {isMultiOption && (
@@ -335,6 +394,76 @@ export default function FieldCard({ field, onUpdate, onRemove }: FieldCardProps)
           />
         </div>
       )}
+
+      {/* ── Table section ── */}
+      {isTable && (() => {
+        const t = parseTable(field.content)
+        return (
+          <div className="border-t border-gray-100 px-3 pb-3 pt-2 space-y-2 overflow-x-auto">
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr>
+                  {t.headers.map((h, ci) => (
+                    <th key={ci} className="border border-gray-200 bg-gray-50 p-0">
+                      <div className="flex items-center">
+                        <input
+                          type="text"
+                          value={h}
+                          onChange={(e) => updateTableHeader(ci, e.target.value)}
+                          className="flex-1 bg-transparent px-2 py-1.5 font-semibold text-gray-700 focus:outline-none min-w-0"
+                          placeholder={`컬럼 ${ci + 1}`}
+                        />
+                        {t.headers.length > 1 && (
+                          <button type="button" onClick={() => removeTableColumn(ci)}
+                            className="px-1 text-gray-300 hover:text-red-400 transition-colors">
+                            <X className="h-3 w-3" />
+                          </button>
+                        )}
+                      </div>
+                    </th>
+                  ))}
+                  <th className="border border-gray-200 bg-gray-50 w-6">
+                    <button type="button" onClick={addTableColumn}
+                      className="w-full px-1 py-1.5 text-gray-400 hover:text-gray-700 transition-colors">
+                      <Plus className="h-3 w-3 mx-auto" />
+                    </button>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {t.rows.map((row, ri) => (
+                  <tr key={ri}>
+                    {row.map((cell, ci) => (
+                      <td key={ci} className="border border-gray-200 p-0">
+                        <input
+                          type="text"
+                          value={cell}
+                          onChange={(e) => updateTableCell(ri, ci, e.target.value)}
+                          className="w-full bg-transparent px-2 py-1.5 text-gray-700 focus:outline-none focus:bg-blue-50 min-w-0"
+                          placeholder="값"
+                        />
+                      </td>
+                    ))}
+                    <td className="border border-gray-200 w-6">
+                      {t.rows.length > 1 && (
+                        <button type="button" onClick={() => removeTableRow(ri)}
+                          className="w-full px-1 py-1.5 text-gray-300 hover:text-red-400 transition-colors">
+                          <X className="h-3 w-3 mx-auto" />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <button type="button" onClick={addTableRow}
+              className="flex items-center gap-1.5 rounded-lg border border-dashed border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors">
+              <Plus className="h-3.5 w-3.5" />
+              행 추가
+            </button>
+          </div>
+        )
+      })()}
     </div>
   )
 }
