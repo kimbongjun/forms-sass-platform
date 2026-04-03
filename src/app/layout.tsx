@@ -1,7 +1,12 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
-import { APP_TITLE } from '@/constants/branding'
-import { createServerClient } from '@/utils/supabase/server'
+import {
+  getGlobalSiteSettings,
+  getResolvedFavicon,
+  getResolvedPrimaryColor,
+  getResolvedSiteDescription,
+  getResolvedSiteTitle,
+} from '@/utils/site-settings'
 import './globals.css'
 
 const geistSans = Geist({
@@ -14,9 +19,37 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 })
 
-export const metadata: Metadata = {
-  title: APP_TITLE,
-  description: APP_TITLE,
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getGlobalSiteSettings()
+  const siteTitle = getResolvedSiteTitle(settings)
+  const siteDescription = getResolvedSiteDescription(settings)
+  const favicon = getResolvedFavicon(settings)
+  const ogImage = settings.og_image_url?.trim()
+
+  return {
+    title: {
+      default: siteTitle,
+      template: `%s | ${siteTitle}`,
+    },
+    description: siteDescription,
+    openGraph: {
+      title: siteTitle,
+      description: siteDescription,
+      images: ogImage ? [ogImage] : undefined,
+    },
+    twitter: {
+      card: ogImage ? 'summary_large_image' : 'summary',
+      title: siteTitle,
+      description: siteDescription,
+      images: ogImage ? [ogImage] : undefined,
+    },
+    icons: favicon
+      ? {
+          icon: [favicon],
+          shortcut: [favicon],
+        }
+      : undefined,
+  }
 }
 
 export default async function RootLayout({
@@ -24,18 +57,8 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  let primaryColor = '#111827'
-  try {
-    const supabase = await createServerClient()
-    const { data } = await supabase
-      .from('site_settings')
-      .select('settings')
-      .eq('id', 1)
-      .single()
-    if (data?.settings?.primary_color) primaryColor = data.settings.primary_color
-  } catch {
-    // site_settings 미설정 시 기본값 사용
-  }
+  const settings = await getGlobalSiteSettings()
+  const primaryColor = getResolvedPrimaryColor(settings)
 
   return (
     <html
@@ -44,7 +67,9 @@ export default async function RootLayout({
       style={{ '--color-primary': primaryColor } as React.CSSProperties}
       suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col" suppressHydrationWarning>{children}</body>
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
+        {children}
+      </body>
     </html>
   )
 }
