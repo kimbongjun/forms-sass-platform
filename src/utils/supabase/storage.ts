@@ -33,3 +33,8 @@ export async function uploadThumbnail(supabase: SupabaseClient, file: File): Pro
   const ext = file.name.split('.').pop() ?? 'jpg'
   return uploadToStorage(supabase, `thumbnails/${crypto.randomUUID()}.${ext}`, file, '썸네일')
 }
+
+export async function uploadSiteAsset(supabase: SupabaseClient, file: File, type: 'og-image' | 'favicon'): Promise<string> {
+  const ext = file.name.split('.').pop() ?? 'png'
+  return uploadToStorage(supabase, `site-assets/${type}-${crypto.randomUUID()}.${ext}`, file, type === 'og-image' ? 'OG 이미지' : '파비콘')
+}

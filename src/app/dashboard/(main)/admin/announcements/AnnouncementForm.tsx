@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { ArrowLeft, Save, Loader2 } from 'lucide-react'
 import Link from 'next/link'
-import { createClient } from '@/utils/supabase/client'
 
 const RichTextEditor = dynamic(() => import('@/components/builder/RichTextEditor'), { ssr: false })
 
@@ -35,21 +34,18 @@ export default function AnnouncementForm({ initialData }: Props) {
     if (!title.trim()) { setError('제목을 입력해주세요.'); return }
     setLoading(true)
     setError('')
-    const supabase = createClient()
     try {
-      if (isEdit) {
-        const { error: err } = await supabase
-          .from('announcements')
-          .update({ title: title.trim(), content, is_published: isPublished, is_pinned: isPinned, updated_at: new Date().toISOString() })
-          .eq('id', initialData!.id)
-        if (err) throw err
-      } else {
-        const { data: { user } } = await supabase.auth.getUser()
-        const { error: err } = await supabase
-          .from('announcements')
-          .insert({ title: title.trim(), content, is_published: isPublished, is_pinned: isPinned, author_id: user?.id })
-        if (err) throw err
-      }
+      const url = isEdit
+        ? `/api/admin/announcements/${initialData!.id}`
+        : '/api/admin/announcements'
+      const res = await fetch(url, {
+        method: isEdit ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: title.trim(), content, is_published: isPublished, is_pinned: isPinned }),
+      })
+      const contentType = res.headers.get('content-type') ?? ''
+      const json = contentType.includes('application/json') ? await res.json() : null
+      if (!res.ok) throw new Error(json?.error ?? `저장 실패 (${res.status})`)
       router.push('/dashboard/admin/announcements')
       router.refresh()
     } catch (err) {

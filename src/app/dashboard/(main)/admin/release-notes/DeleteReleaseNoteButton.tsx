@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Trash2, Loader2 } from 'lucide-react'
-import { createClient } from '@/utils/supabase/client'
 
 export default function DeleteReleaseNoteButton({ id }: { id: string }) {
   const router = useRouter()
@@ -12,10 +11,12 @@ export default function DeleteReleaseNoteButton({ id }: { id: string }) {
   async function handleDelete() {
     if (!confirm('릴리즈노트를 삭제하시겠습니까?')) return
     setLoading(true)
-    const supabase = createClient()
-    await supabase.from('release_notes').delete().eq('id', id)
-    router.refresh()
-    setLoading(false)
+    try {
+      await fetch(`/api/admin/release-notes/${id}`, { method: 'DELETE' })
+      router.refresh()
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (

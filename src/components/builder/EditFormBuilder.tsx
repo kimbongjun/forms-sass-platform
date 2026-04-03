@@ -50,18 +50,22 @@ export default function EditFormBuilder({ project, initialFields, initialDeadlin
       await supabase.from('form_fields').delete().eq('project_id', project.id)
 
       if (fieldState.fields.length > 0) {
-        const rows = fieldState.fields.map((f) => ({
-          id: f.id,
-          project_id: project.id,
-          label: f.label.trim() || '(제목 없음)',
-          description: f.description ?? null,
-          type: f.type,
-          required: f.required,
-          order_index: f.order_index,
-          options: f.options ?? null,
-          content: f.content ?? null,
-          logic: f.logic ?? null,
-        }))
+        const rows = fieldState.fields.map((f) => {
+          const row: Record<string, unknown> = {
+            id: f.id,
+            project_id: project.id,
+            label: f.label.trim() || '(제목 없음)',
+            description: f.description ?? null,
+            type: f.type,
+            required: f.required,
+            order_index: f.order_index,
+            options: f.options ?? null,
+            content: f.content ?? null,
+          }
+          // logic 컬럼: DB 마이그레이션(migration 13) 실행 후에만 포함
+          if (f.logic != null) row.logic = f.logic
+          return row
+        })
         const { error: insertErr } = await supabase.from('form_fields').insert(rows)
         if (insertErr) throw new Error(`필드 저장 실패: ${insertErr.message}`)
       }

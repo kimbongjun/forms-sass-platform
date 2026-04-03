@@ -132,9 +132,8 @@
 ---
 
 ## 향후 작업
-- [] **글로벌 메뉴 추가** : 공지사항 게시판, 릴리즈노트를 만들어줘 공지사항 게시판은 누구나 볼 수 있으나 글쓰기 권한은 관리자만 갖고 있어야돼. 릴리즈노트는 업데이트될 때마다 버전 생성과 어떤 작업 내역이 있는 지 정리해주면돼.
-- [] **회원가입 약관** : 글로벌 옵션으로 개인정보처리방침,서비스이용동의,이용약관을 편집하고 이 중 회원가입 시 필수 동의 조건으로 넣고 싶어. 물론 footer에도 별도 메뉴로 추가해야돼. 해당 글로벌 옵션의 편집은 관리자만 가능하도록 진행해.
-- [] **프로젝트 SEO** : 프로젝트별로 SEO 관리 옵션을 만들어줘.
-- [] **git push** : 이후의 작업들은 자동으로 git push 진행해줘. commit은 자세하게 기술하지 않아도돼.
-- [] **위지윅 에디터** : 사이트에서 공통으로 쓰이는 위지윅 에디터를 개선해줘 현재의 tiptap 에디터는 너무 제한적이야. Toast UI Editor로 교체해줘.
-- [] **폼 입력 편집** : "섹션 기능"은 단순히 섹션으로 이동뿐만 아니라 섹션이 group역할을 해서 그 안에 입력폼들을 넣을 수도 있어야돼. 개선해줘
+- [x] **저장 시 오류 해결** : SEO/logic 컬럼 누락 → 조건부 포함으로 수정. announcements/release_notes CRUD를 서버 API 라우트로 이전(브라우저 RLS 우회). TinyMCE controlled mode(`value`) 버그 → `initialValue`로 수정.
+- [x] **레이아웃 통일** : 공지사항·릴리즈노트에 `layout.tsx` 추가(SiteHeader/SiteFooter 공유), 콘텐츠 컨테이너 `max-w-7xl`로 확장, SiteHeader 내부 `max-w-7xl px-8`로 통일.
+- [x] **릴리즈 노트** : `POST /api/admin/release-notes/generate` 구현 — git log 파싱 → 카테고리 분류 → 버전 자동 증가 → DB 저장. 관리자 페이지에 "자동 생성" 버튼 추가.
+- [x] **위지윅 에디터 변경** : Toast UI Editor → TinyMCE(self-hosted, `public/tinymce`) 교체. `scripts/copy-tinymce.js` + `postinstall` 스크립트로 자동 복사.
+- [x] **글로벌 설정 수정** : OG 이미지·파비콘을 URL 입력 → 파일 업로드(Supabase Storage `site-assets/`) 형태로 변경. 파일 크기 5MB·MIME 화이트리스트 검증 포함.

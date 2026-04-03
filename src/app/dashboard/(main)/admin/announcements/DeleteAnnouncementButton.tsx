@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Trash2, Loader2 } from 'lucide-react'
-import { createClient } from '@/utils/supabase/client'
 
 export default function DeleteAnnouncementButton({ id }: { id: string }) {
   const router = useRouter()
@@ -12,10 +11,12 @@ export default function DeleteAnnouncementButton({ id }: { id: string }) {
   async function handleDelete() {
     if (!confirm('공지사항을 삭제하시겠습니까?')) return
     setLoading(true)
-    const supabase = createClient()
-    await supabase.from('announcements').delete().eq('id', id)
-    router.refresh()
-    setLoading(false)
+    try {
+      await fetch(`/api/admin/announcements/${id}`, { method: 'DELETE' })
+      router.refresh()
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (

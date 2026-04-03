@@ -35,27 +35,32 @@ export async function POST(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 })
 
+    const projectRow: Record<string, unknown> = {
+      title,
+      slug,
+      notification_email: body.notificationEmail?.trim() || null,
+      theme_color: body.themeColor || '#111827',
+      is_published: body.isPublished ?? true,
+      deadline: body.deadline || null,
+      max_submissions: body.maxSubmissions ?? null,
+      webhook_url: body.webhookUrl?.trim() || null,
+      submission_message: body.submissionMessage?.trim() || null,
+      admin_email_template: body.adminEmailTemplate ?? null,
+      user_email_template: body.userEmailTemplate ?? null,
+      thumbnail_url: body.thumbnailUrl ?? null,
+      locale_settings: body.localeSettings ?? null,
+      user_id: user.id,
+    }
+    // SEO 컬럼: DB 마이그레이션(migration 12) 실행 후에만 포함
+    if (body.seoTitle || body.seoDescription || body.seoOgImage) {
+      projectRow.seo_title = body.seoTitle ?? null
+      projectRow.seo_description = body.seoDescription ?? null
+      projectRow.seo_og_image = body.seoOgImage ?? null
+    }
+
     const { data: project, error: projectErr } = await supabase
       .from('projects')
-      .insert({
-        title,
-        slug,
-        notification_email: body.notificationEmail?.trim() || null,
-        theme_color: body.themeColor || '#111827',
-        is_published: body.isPublished ?? true,
-        deadline: body.deadline || null,
-        max_submissions: body.maxSubmissions ?? null,
-        webhook_url: body.webhookUrl?.trim() || null,
-        submission_message: body.submissionMessage?.trim() || null,
-        admin_email_template: body.adminEmailTemplate ?? null,
-        user_email_template: body.userEmailTemplate ?? null,
-        thumbnail_url: body.thumbnailUrl ?? null,
-        locale_settings: body.localeSettings ?? null,
-        seo_title: body.seoTitle ?? null,
-        seo_description: body.seoDescription ?? null,
-        seo_og_image: body.seoOgImage ?? null,
-        user_id: user.id,
-      })
+      .insert(projectRow)
       .select('id')
       .single()
 
@@ -68,17 +73,21 @@ export async function POST(req: NextRequest) {
 
     const fields = Array.isArray(body.fields) ? body.fields : []
     if (fields.length > 0) {
-      const rows = fields.map((f, index) => ({
-        project_id: project.id,
-        label: f.label.trim() || '(제목 없음)',
-        description: f.description ?? null,
-        type: f.type,
-        required: f.required,
-        order_index: f.order_index ?? index,
-        options: f.options ?? null,
-        content: f.content ?? null,
-        logic: f.logic ?? null,
-      }))
+      const rows = fields.map((f, index) => {
+        const row: Record<string, unknown> = {
+          project_id: project.id,
+          label: f.label.trim() || '(제목 없음)',
+          description: f.description ?? null,
+          type: f.type,
+          required: f.required,
+          order_index: f.order_index ?? index,
+          options: f.options ?? null,
+          content: f.content ?? null,
+        }
+        // logic 컬럼: DB 마이그레이션(migration 13) 실행 후에만 포함
+        if (f.logic != null) row.logic = f.logic
+        return row
+      })
 
       const { error: fieldsErr } = await supabase.from('form_fields').insert(rows)
       if (fieldsErr) {

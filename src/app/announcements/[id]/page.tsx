@@ -2,8 +2,6 @@ import { notFound } from 'next/navigation'
 import { createServerClient } from '@/utils/supabase/server'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
-import SiteHeader from '@/components/common/SiteHeader'
-import SiteFooter from '@/components/common/SiteFooter'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -26,30 +24,24 @@ export default async function AnnouncementDetailPage({ params }: Props) {
   if (!data) notFound()
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50">
-      <SiteHeader />
-      <div className="border-b border-gray-200 bg-white px-6 py-3">
-        <div className="mx-auto flex max-w-3xl items-center gap-2">
-          <Link href="/announcements" className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-          <span className="text-sm text-gray-500">공지사항</span>
-        </div>
+    <div className="mx-auto w-full max-w-7xl px-8 py-8">
+      <div className="mb-6 flex items-center gap-2">
+        <Link href="/announcements" className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors">
+          <ArrowLeft className="h-4 w-4" />
+        </Link>
+        <span className="text-sm text-gray-500">공지사항</span>
       </div>
 
-      <main className="flex-1 mx-auto w-full max-w-3xl px-6 py-10">
-        <article className="rounded-2xl border border-gray-200 bg-white p-8">
-          <div className="mb-6 border-b border-gray-100 pb-6">
-            {data.is_pinned && (
-              <span className="mb-2 inline-block rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700">공지</span>
-            )}
-            <h1 className="text-xl font-bold text-gray-900">{data.title}</h1>
-            <p className="mt-2 text-xs text-gray-400">{formatDate(data.created_at)}</p>
-          </div>
-          <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: data.content }} />
-        </article>
-      </main>
-      <SiteFooter />
+      <article className="rounded-2xl border border-gray-200 bg-white p-8">
+        <div className="mb-6 border-b border-gray-100 pb-6">
+          {data.is_pinned && (
+            <span className="mb-2 inline-block rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700">공지</span>
+          )}
+          <h1 className="text-xl font-bold text-gray-900">{data.title}</h1>
+          <p className="mt-2 text-xs text-gray-400">{formatDate(data.created_at)}</p>
+        </div>
+        <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: data.content }} />
+      </article>
     </div>
   )
 }

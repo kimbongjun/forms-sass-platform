@@ -11,7 +11,7 @@ export default async function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-30 border-b border-gray-200 bg-white">
-      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-6">
+      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-8">
         <Link href="/" className="text-sm font-bold text-gray-900 hover:text-gray-600 transition-colors">
           {siteName}
         </Link>

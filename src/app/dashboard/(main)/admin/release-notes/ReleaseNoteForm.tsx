@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { ArrowLeft, Save, Loader2 } from 'lucide-react'
 import Link from 'next/link'
-import { createClient } from '@/utils/supabase/client'
 
 const RichTextEditor = dynamic(() => import('@/components/builder/RichTextEditor'), { ssr: false })
 
@@ -34,20 +33,18 @@ export default function ReleaseNoteForm({ initialData }: Props) {
     if (!title.trim()) { setError('제목을 입력해주세요.'); return }
     setLoading(true)
     setError('')
-    const supabase = createClient()
     try {
-      if (isEdit) {
-        const { error: err } = await supabase
-          .from('release_notes')
-          .update({ version: version.trim(), title: title.trim(), content })
-          .eq('id', initialData!.id)
-        if (err) throw err
-      } else {
-        const { error: err } = await supabase
-          .from('release_notes')
-          .insert({ version: version.trim(), title: title.trim(), content })
-        if (err) throw err
-      }
+      const url = isEdit
+        ? `/api/admin/release-notes/${initialData!.id}`
+        : '/api/admin/release-notes'
+      const res = await fetch(url, {
+        method: isEdit ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ version: version.trim(), title: title.trim(), content }),
+      })
+      const contentType = res.headers.get('content-type') ?? ''
+      const json = contentType.includes('application/json') ? await res.json() : null
+      if (!res.ok) throw new Error(json?.error ?? `저장 실패 (${res.status})`)
       router.push('/dashboard/admin/release-notes')
       router.refresh()
     } catch (err) {

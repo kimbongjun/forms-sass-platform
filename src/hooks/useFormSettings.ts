@@ -58,7 +58,7 @@ export function useFormSettings(initial: Initial = {}) {
 
   /** Payload for Supabase .update() (snake_case) */
   function toUpdatePayload() {
-    return {
+    const payload: Record<string, unknown> = {
       notification_email: notificationEmail.trim() || null,
       theme_color: themeColor || '#111827',
       is_published: isPublished,
@@ -70,10 +70,14 @@ export function useFormSettings(initial: Initial = {}) {
       user_email_template: isHtmlEmpty(userEmailTemplate) ? null : userEmailTemplate,
       thumbnail_url: thumbnailUrl || null,
       locale_settings: localeSettings,
-      seo_title: seoTitle.trim() || null,
-      seo_description: seoDescription.trim() || null,
-      seo_og_image: seoOgImage.trim() || null,
     }
+    // SEO 컬럼: DB 마이그레이션(migration 12) 실행 후에만 포함
+    if (seoTitle || seoDescription || seoOgImage) {
+      payload.seo_title = seoTitle.trim() || null
+      payload.seo_description = seoDescription.trim() || null
+      payload.seo_og_image = seoOgImage.trim() || null
+    }
+    return payload
   }
 
   return {

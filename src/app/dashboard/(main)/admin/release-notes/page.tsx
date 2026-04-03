@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, Pencil } from 'lucide-react'
 import DeleteReleaseNoteButton from './DeleteReleaseNoteButton'
+import GenerateReleaseNoteButton from './GenerateReleaseNoteButton'
 
 function formatDate(iso: string) {
   return new Intl.DateTimeFormat('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso))
@@ -27,13 +28,16 @@ export default async function AdminReleaseNotesPage() {
           <h1 className="text-base font-semibold text-gray-900">릴리즈노트 관리</h1>
           <p className="text-xs text-gray-400">총 {notes?.length ?? 0}건</p>
         </div>
-        <Link
-          href="/dashboard/admin/release-notes/new"
-          className="flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 transition-colors"
-        >
-          <Plus className="h-4 w-4" />
-          새 릴리즈
-        </Link>
+        <div className="flex items-center gap-2">
+          <GenerateReleaseNoteButton />
+          <Link
+            href="/dashboard/admin/release-notes/new"
+            className="flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            새 릴리즈
+          </Link>
+        </div>
       </div>
 
       {(!notes || notes.length === 0) ? (
