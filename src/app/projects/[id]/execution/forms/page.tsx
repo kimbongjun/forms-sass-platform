@@ -31,5 +31,5 @@ export default async function EditProjectFormsPage({ params }: EditProjectFormsP
       }).format(new Date(project.deadline)).replace(' ', 'T')
     : ''
 
-  return <EditFormBuilder project={project} initialFields={fields ?? []} initialDeadline={initialDeadline} />
+  return <EditFormBuilder project={project} initialFields={fields ?? []} initialDeadline={initialDeadline} embedded />
 }

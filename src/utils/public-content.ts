@@ -64,38 +64,6 @@ const getCachedReleaseNoteById = unstable_cache(
   { revalidate: PUBLIC_CONTENT_REVALIDATE_SECONDS, tags: ['release-notes'] }
 )
 
-const getCachedPublicProjectBySlug = unstable_cache(
-  async (slug: string) => {
-    const supabase = createPublicClient()
-    const { data, error } = await supabase
-      .from('projects')
-      .select('*')
-      .eq('slug', slug)
-      .single()
-
-    if (error) return null
-    return data
-  },
-  ['public-project-by-slug'],
-  { revalidate: PUBLIC_PROJECT_REVALIDATE_SECONDS, tags: ['projects-public'] }
-)
-
-const getCachedPublicFormFields = unstable_cache(
-  async (projectId: string) => {
-    const supabase = createPublicClient()
-    const { data, error } = await supabase
-      .from('form_fields')
-      .select('*')
-      .eq('project_id', projectId)
-      .order('order_index', { ascending: true })
-
-    if (error) throw error
-    return data ?? []
-  },
-  ['public-project-fields'],
-  { revalidate: PUBLIC_PROJECT_REVALIDATE_SECONDS, tags: ['projects-public'] }
-)
-
 export async function getPublishedAnnouncements() {
   return getCachedPublishedAnnouncements()
 }
@@ -112,10 +80,44 @@ export async function getReleaseNoteById(id: string) {
   return getCachedReleaseNoteById(id)
 }
 
+/**
+ * slug별 고유 캐시 키를 사용해 다른 프로젝트 데이터가 반환되는 문제 방지
+ */
 export async function getPublicProjectBySlug(slug: string) {
-  return getCachedPublicProjectBySlug(slug)
+  return unstable_cache(
+    async () => {
+      const supabase = createPublicClient()
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('slug', slug)
+        .single()
+
+      if (error) return null
+      return data
+    },
+    [`public-project-slug-${slug}`],
+    { revalidate: PUBLIC_PROJECT_REVALIDATE_SECONDS, tags: ['projects-public'] }
+  )()
 }
 
+/**
+ * projectId별 고유 캐시 키를 사용해 다른 프로젝트 필드가 반환되는 문제 방지
+ */
 export async function getPublicFormFields(projectId: string) {
-  return getCachedPublicFormFields(projectId)
+  return unstable_cache(
+    async () => {
+      const supabase = createPublicClient()
+      const { data, error } = await supabase
+        .from('form_fields')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('order_index', { ascending: true })
+
+      if (error) return []
+      return data ?? []
+    },
+    [`public-project-fields-${projectId}`],
+    { revalidate: PUBLIC_PROJECT_REVALIDATE_SECONDS, tags: ['projects-public'] }
+  )()
 }

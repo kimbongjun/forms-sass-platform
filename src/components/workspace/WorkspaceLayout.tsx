@@ -65,7 +65,7 @@ export default function WorkspaceLayout({
             </button>
           </div>
           <div className="flex-1 overflow-y-auto">
-            <WorkspaceSidebar role={role} onNavigate={() => setSidebarOpen(false)} />
+            <WorkspaceSidebar role={role} />
           </div>
         </div>
 

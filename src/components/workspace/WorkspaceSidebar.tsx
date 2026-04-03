@@ -35,19 +35,17 @@ function isActive(pathname: string, hubKey: string) {
 
 interface WorkspaceSidebarProps {
   role?: 'administrator' | 'editor'
-  onNavigate?: () => void
 }
 
-export default function WorkspaceSidebar({ role = 'editor', onNavigate }: WorkspaceSidebarProps) {
+export default function WorkspaceSidebar({ role = 'editor' }: WorkspaceSidebarProps) {
   const pathname = usePathname()
 
   return (
-    <aside className="flex h-full w-72 shrink-0 flex-col bg-white">
+    <aside className="flex w-72 shrink-0 flex-col border-r border-gray-200 bg-white">
       <div className="border-b border-gray-100 px-4 py-4">
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-400">Quick Action</p>
         <Link
           href="/projects/new"
-          onClick={onNavigate}
           className="mt-3 flex items-center justify-between rounded-2xl bg-gray-900 px-4 py-4 text-white transition-colors hover:bg-gray-800"
         >
           <div>
@@ -66,7 +64,6 @@ export default function WorkspaceSidebar({ role = 'editor', onNavigate }: Worksp
             <Link
               key={hub.key}
               href={hub.href}
-              onClick={onNavigate}
               className={[
                 'flex items-start gap-3 rounded-2xl px-4 py-3 transition-colors',
                 active
@@ -95,7 +92,6 @@ export default function WorkspaceSidebar({ role = 'editor', onNavigate }: Worksp
                   <Link
                     key={href}
                     href={href}
-                    onClick={onNavigate}
                     className={[
                       'flex items-center gap-3 rounded-2xl px-4 py-2.5 transition-colors',
                       active
@@ -114,33 +110,21 @@ export default function WorkspaceSidebar({ role = 'editor', onNavigate }: Worksp
       </nav>
 
       <div className="border-t border-gray-100 px-4 py-4">
-        <div className="space-y-1 text-sm">
-          <Link
-            href="/dashboard/account"
-            onClick={onNavigate}
-            className={[
-              'flex items-center gap-2 rounded-xl px-3 py-2 transition-colors',
-              pathname === '/dashboard/account'
-                ? 'bg-gray-100 text-gray-900'
-                : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900',
-            ].join(' ')}
-          >
+        <div className="mt-3 space-y-1 text-sm">
+          <Link href="/dashboard/account" className={[
+            'flex items-center gap-2 rounded-xl px-3 py-2 transition-colors',
+            pathname === '/dashboard/account'
+              ? 'bg-gray-100 text-gray-900'
+              : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900',
+          ].join(' ')}>
             <Settings className="h-3.5 w-3.5 shrink-0" />
             계정 설정
           </Link>
-          <Link
-            href="/announcements"
-            onClick={onNavigate}
-            className="flex items-center gap-2 rounded-xl px-3 py-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900"
-          >
+          <Link href="/announcements" className="flex items-center gap-2 rounded-xl px-3 py-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900">
             <Megaphone className="h-3.5 w-3.5 shrink-0" />
             공지사항
           </Link>
-          <Link
-            href="/release-notes"
-            onClick={onNavigate}
-            className="flex items-center gap-2 rounded-xl px-3 py-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900"
-          >
+          <Link href="/release-notes" className="flex items-center gap-2 rounded-xl px-3 py-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900">
             <Bell className="h-3.5 w-3.5 shrink-0" />
             릴리즈노트
           </Link>
