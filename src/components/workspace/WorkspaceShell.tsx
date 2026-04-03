@@ -2,8 +2,8 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import classysLogo from '@/imgs/classys_logo.svg'
-import { APP_TITLE } from '@/constants/branding'
 import { createServerClient, getUserRole } from '@/utils/supabase/server'
+import { getResolvedSiteTitle } from '@/utils/site-settings'
 import UserMenu from '@/components/dashboard/UserMenu'
 import WorkspaceSidebar from './WorkspaceSidebar'
 
@@ -13,7 +13,9 @@ interface WorkspaceShellProps {
 
 export default async function WorkspaceShell({ children }: WorkspaceShellProps) {
   const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) redirect('/login')
 
@@ -22,14 +24,16 @@ export default async function WorkspaceShell({ children }: WorkspaceShellProps) 
     supabase.from('site_settings').select('settings').eq('id', 1).single(),
   ])
 
-  const footerText = settingsData.data?.settings?.footer_text || `© ${APP_TITLE}. All rights reserved.`
+  const siteSettings = settingsData.data?.settings ?? {}
+  const siteTitle = getResolvedSiteTitle(siteSettings)
+  const footerText = siteSettings.footer_text || `© ${siteTitle}. All rights reserved.`
 
   return (
     <div className="flex h-screen flex-col bg-gray-50">
       <header className="flex h-16 shrink-0 items-center justify-between border-b border-gray-200 bg-white px-6">
         <Link href="/dashboard" className="flex items-center gap-3 transition-opacity hover:opacity-80">
-          <Image src={classysLogo} alt={APP_TITLE} width={118} height={26} priority className="h-7 w-auto" />
-          <span className="text-sm font-semibold text-gray-900">{APP_TITLE}</span>
+          <Image src={classysLogo} alt={siteTitle} width={118} height={26} priority className="h-7 w-auto" />
+          <span className="text-sm font-semibold text-gray-900">{siteTitle}</span>
         </Link>
         <UserMenu email={user.email ?? ''} role={role} />
       </header>

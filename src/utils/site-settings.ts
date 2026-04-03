@@ -8,6 +8,7 @@ export interface GlobalSiteSettings {
   favicon_url?: string
   og_image_url?: string
   primary_color?: string
+  footer_text?: string
 }
 
 export const getGlobalSiteSettings = cache(async (): Promise<GlobalSiteSettings> => {
