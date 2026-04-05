@@ -2,6 +2,7 @@
 import { APP_TITLE } from '@/constants/branding'
 
 export interface GlobalSiteSettings {
+  logo_url?: string
   site_title?: string
   site_description?: string
   favicon_url?: string
@@ -42,6 +43,17 @@ export function getResolvedSiteTitle(settings: GlobalSiteSettings) {
 
 export function getResolvedSiteDescription(settings: GlobalSiteSettings) {
   return settings.site_description?.trim() || APP_TITLE
+}
+
+export function getResolvedLogoUrl(settings: GlobalSiteSettings) {
+  return settings.logo_url?.trim() || null
+}
+
+export function getResolvedDarkLogoUrl(settings: GlobalSiteSettings) {
+  const logoUrl = getResolvedLogoUrl(settings)
+  if (!logoUrl) return null
+
+  return `/api/site-logo?mode=dark&url=${encodeURIComponent(logoUrl)}`
 }
 
 export function getResolvedPrimaryColor(settings: GlobalSiteSettings) {

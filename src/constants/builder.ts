@@ -1,7 +1,7 @@
 import type { FieldType } from '@/types/database'
 
 export const INPUT_TYPES: FieldType[] = [
-  'text', 'email', 'textarea', 'checkbox', 'select', 'radio', 'checkbox_group', 'rating',
+  'text', 'email', 'textarea', 'checkbox', 'select', 'radio', 'checkbox_group', 'date', 'rating',
 ]
 
 export const CONTENT_TYPES: FieldType[] = [

@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { Plus, Pencil, Trash2, Check, X } from 'lucide-react'
+import { DateRangePickerInput } from '@/components/common/DatePickerInput'
 
 interface Milestone {
   id: string
@@ -199,22 +200,13 @@ export default function GanttChart({
                 className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
               />
             </div>
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-gray-600">시작일 *</label>
-              <input
-                type="date"
-                value={form.start_date}
-                onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))}
-                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-gray-600">종료일 *</label>
-              <input
-                type="date"
-                value={form.end_date}
-                onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))}
-                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
+            <div className="sm:col-span-2">
+              <label className="mb-1.5 block text-xs font-medium text-gray-600">기간 *</label>
+              <DateRangePickerInput
+                from={form.start_date}
+                to={form.end_date}
+                onChange={({ from, to }) => setForm((f) => ({ ...f, start_date: from, end_date: to }))}
+                placeholder="마일스톤 기간 선택"
               />
             </div>
             <div>

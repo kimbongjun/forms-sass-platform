@@ -23,6 +23,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
+import { DatePickerInput } from '@/components/common/DatePickerInput'
 import { HeaderSkeleton, SectionSkeleton, SkeletonBlock } from '@/components/common/LoadingSkeleton'
 import type {
   DeliverableSearchPlatform,
@@ -497,8 +498,8 @@ export default function DeliverablesPage() {
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">산출물 관리</h2>
-          <p className="mt-0.5 text-sm text-gray-400">
+          <h2 className="theme-title text-lg font-semibold">산출물 관리</h2>
+          <p className="theme-subtle mt-0.5 text-sm">
             키워드 조회, URL 조회, 수동 등록으로 SNS 산출물을 관리합니다.
           </p>
         </div>
@@ -507,7 +508,7 @@ export default function DeliverablesPage() {
             type="button"
             onClick={() => fetchData(true)}
             disabled={refreshing}
-            className="flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-40"
+            className="theme-panel theme-body theme-hover-surface flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-sm transition-colors disabled:opacity-40"
           >
             <RefreshCw className={['h-4 w-4', refreshing ? 'animate-spin' : ''].join(' ')} />
             새로고침
@@ -529,10 +530,10 @@ export default function DeliverablesPage() {
       )}
 
       {!loading && items.length === 0 && (
-        <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-white px-4 py-12 text-center sm:py-24">
+        <div className="theme-panel flex flex-col items-center justify-center rounded-2xl border-2 border-dashed px-4 py-12 text-center sm:py-24">
           <Share2 className="mb-4 h-12 w-12 text-gray-300" />
-          <p className="text-base font-medium text-gray-500">등록된 산출물이 없습니다.</p>
-          <p className="mt-1 text-sm text-gray-400">키워드 조회나 URL 조회로 첫 산출물을 등록해보세요.</p>
+          <p className="theme-muted text-base font-medium">등록된 산출물이 없습니다.</p>
+          <p className="theme-subtle mt-1 text-sm">키워드 조회나 URL 조회로 첫 산출물을 등록해보세요.</p>
           <button
             type="button"
             onClick={openCreate}
@@ -545,18 +546,18 @@ export default function DeliverablesPage() {
       )}
 
       {!loading && Object.entries(grouped).map(([platform, list]) => (
-        <section key={platform} className="rounded-2xl border border-gray-200 bg-white shadow-sm">
-          <div className="flex items-center gap-3 border-b border-gray-100 px-5 py-4">
+        <section key={platform} className="theme-panel rounded-2xl border shadow-sm">
+          <div className="theme-divider flex items-center gap-3 border-b px-5 py-4">
             <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${PLATFORM_COLORS[platform as Platform]}`}>
               {PLATFORM_LABELS[platform as Platform]}
             </span>
-            <span className="text-sm text-gray-400">{list.length}건</span>
+            <span className="theme-subtle text-sm">{list.length}건</span>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full min-w-[700px] text-sm">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                <tr className="theme-divider theme-panel-soft border-b text-xs font-semibold uppercase tracking-wide theme-subtle">
                   <th className="px-5 py-3 text-left">썸네일</th>
                   <th className="px-4 py-3 text-left">제목 / URL</th>
                   <th className="px-4 py-3 text-center">게시일</th>
@@ -568,9 +569,9 @@ export default function DeliverablesPage() {
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="theme-divider divide-y">
                 {list.map((d) => (
-                  <tr key={d.id} className="group hover:bg-gray-50">
+                  <tr key={d.id} className="theme-hover-surface group">
                     <td className="px-5 py-3">
                       {d.thumbnail_url ? (
                         <Image
@@ -582,25 +583,25 @@ export default function DeliverablesPage() {
                           className="h-12 w-20 rounded-lg object-cover"
                         />
                       ) : (
-                        <div className="h-12 w-20 rounded-lg bg-gray-100" />
+                        <div className="theme-panel-soft h-12 w-20 rounded-lg" />
                       )}
                     </td>
                     <td className="max-w-[220px] px-4 py-3">
-                      <p className="truncate font-medium text-gray-900">{d.title}</p>
-                      <a href={d.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 truncate text-xs text-gray-400 hover:text-gray-600">
+                      <p className="theme-title truncate font-medium">{d.title}</p>
+                      <a href={d.url} target="_blank" rel="noopener noreferrer" className="theme-subtle flex items-center gap-1 truncate text-xs hover:text-gray-600">
                         <ExternalLink className="h-3 w-3 shrink-0" />
                         {d.url}
                       </a>
                     </td>
-                    <td className="px-4 py-3 text-center text-xs text-gray-500">{formatDate(d.published_at)}</td>
-                    <td className="px-4 py-3 text-center font-medium text-gray-700">{formatNum(d.views)}</td>
-                    <td className="px-4 py-3 text-center font-medium text-gray-700">{formatNum(d.likes)}</td>
-                    <td className="px-4 py-3 text-center font-medium text-gray-700">{formatNum(d.comments)}</td>
-                    <td className="px-4 py-3 text-center font-medium text-gray-700">{formatNum(d.shares)}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-center text-xs text-gray-400">{formatSyncTime(d.last_synced_at)}</td>
+                    <td className="theme-muted px-4 py-3 text-center text-xs">{formatDate(d.published_at)}</td>
+                    <td className="theme-body px-4 py-3 text-center font-medium">{formatNum(d.views)}</td>
+                    <td className="theme-body px-4 py-3 text-center font-medium">{formatNum(d.likes)}</td>
+                    <td className="theme-body px-4 py-3 text-center font-medium">{formatNum(d.comments)}</td>
+                    <td className="theme-body px-4 py-3 text-center font-medium">{formatNum(d.shares)}</td>
+                    <td className="theme-subtle whitespace-nowrap px-4 py-3 text-center text-xs">{formatSyncTime(d.last_synced_at)}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                        <button type="button" onClick={() => openEdit(d)} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700" title="수정">
+                        <button type="button" onClick={() => openEdit(d)} className="theme-subtle theme-hover-surface rounded-lg p-1.5 hover:text-gray-700" title="수정">
                           <Edit2 className="h-3.5 w-3.5" />
                         </button>
                         <button
@@ -624,44 +625,44 @@ export default function DeliverablesPage() {
 
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
-              <h3 className="text-base font-semibold text-gray-900">{modalTitle}</h3>
-              <button type="button" onClick={closeModal} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100">
+          <div className="theme-panel flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl shadow-2xl">
+            <div className="theme-divider flex items-center justify-between border-b px-6 py-4">
+              <h3 className="theme-title text-base font-semibold">{modalTitle}</h3>
+              <button type="button" onClick={closeModal} className="theme-subtle theme-hover-surface rounded-lg p-1.5">
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             {modalStep === 'select_method' && (
               <div className="overflow-y-auto px-6 py-6">
-                <p className="text-sm text-gray-500">등록 방식을 선택하면 그에 맞는 입력 흐름으로 이동합니다.</p>
+                <p className="theme-muted text-sm">등록 방식을 선택하면 그에 맞는 입력 흐름으로 이동합니다.</p>
                 <div className="mt-5 grid gap-3 md:grid-cols-3">
                   <button
                     type="button"
                     onClick={() => setModalStep('keyword_search')}
-                    className="rounded-2xl border border-gray-200 bg-white p-5 text-left transition-colors hover:border-gray-300 hover:bg-gray-50"
+                    className="theme-panel theme-hover-surface rounded-2xl border p-5 text-left transition-colors hover:border-gray-300"
                   >
-                    <Search className="h-5 w-5 text-gray-900" />
-                    <p className="mt-4 text-sm font-semibold text-gray-900">키워드 조회</p>
-                    <p className="mt-1 text-xs leading-5 text-gray-500">키워드로 채널별 게시물을 검색하고, 선택한 결과를 일괄 등록합니다.</p>
+                    <Search className="theme-title h-5 w-5" />
+                    <p className="theme-title mt-4 text-sm font-semibold">키워드 조회</p>
+                    <p className="theme-muted mt-1 text-xs leading-5">키워드로 채널별 게시물을 검색하고, 선택한 결과를 일괄 등록합니다.</p>
                   </button>
                   <button
                     type="button"
                     onClick={() => setModalStep('url_input')}
-                    className="rounded-2xl border border-gray-200 bg-white p-5 text-left transition-colors hover:border-gray-300 hover:bg-gray-50"
+                    className="theme-panel theme-hover-surface rounded-2xl border p-5 text-left transition-colors hover:border-gray-300"
                   >
-                    <LinkIcon className="h-5 w-5 text-gray-900" />
-                    <p className="mt-4 text-sm font-semibold text-gray-900">URL 조회</p>
-                    <p className="mt-1 text-xs leading-5 text-gray-500">기존처럼 URL 하나를 붙여넣어 메타데이터와 지표를 자동 파싱합니다.</p>
+                    <LinkIcon className="theme-title h-5 w-5" />
+                    <p className="theme-title mt-4 text-sm font-semibold">URL 조회</p>
+                    <p className="theme-muted mt-1 text-xs leading-5">기존처럼 URL 하나를 붙여넣어 메타데이터와 지표를 자동 파싱합니다.</p>
                   </button>
                   <button
                     type="button"
                     onClick={switchToManual}
-                    className="rounded-2xl border border-gray-200 bg-white p-5 text-left transition-colors hover:border-gray-300 hover:bg-gray-50"
+                    className="theme-panel theme-hover-surface rounded-2xl border p-5 text-left transition-colors hover:border-gray-300"
                   >
-                    <PencilLine className="h-5 w-5 text-gray-900" />
-                    <p className="mt-4 text-sm font-semibold text-gray-900">수동 등록</p>
-                    <p className="mt-1 text-xs leading-5 text-gray-500">URL 없이 제목, 썸네일, 지표를 직접 입력해서 바로 등록합니다.</p>
+                    <PencilLine className="theme-title h-5 w-5" />
+                    <p className="theme-title mt-4 text-sm font-semibold">수동 등록</p>
+                    <p className="theme-muted mt-1 text-xs leading-5">URL 없이 제목, 썸네일, 지표를 직접 입력해서 바로 등록합니다.</p>
                   </button>
                 </div>
               </div>
@@ -1072,11 +1073,10 @@ export default function DeliverablesPage() {
                       게시일
                       {parsedFields?.published_at && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />}
                     </label>
-                    <input
-                      type="date"
+                    <DatePickerInput
                       value={form.published_at}
-                      onChange={(event) => setForm((current) => ({ ...current, published_at: event.target.value }))}
-                      className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-900 focus:border-gray-400 focus:outline-none"
+                      onChange={(next) => setForm((current) => ({ ...current, published_at: next }))}
+                      placeholder="게시일 선택"
                     />
                   </div>
 

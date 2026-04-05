@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { ChevronLeft, ChevronRight, Loader2, Plus, Trash2, Check, X } from 'lucide-react'
+import { DateRangePickerInput } from '@/components/common/DatePickerInput'
 
 // ── 타입 ──────────────────────────────────────────────────────────────────────
 
@@ -375,13 +376,13 @@ export default function GanttWBS({ projectId, initialTasks }: GanttWBSProps) {
                   {/* 수정 중 우측 날짜 입력 */}
                   {isEditingThis && editing && (
                     <div className="flex items-center gap-3 px-4 py-2">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] text-gray-400">시작</span>
-                        <input type="date" value={editing.start_date} onChange={(e) => setEditing({ ...editing, start_date: e.target.value })} className={`${inputCls} w-36`} />
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] text-gray-400">종료</span>
-                        <input type="date" value={editing.due_date} onChange={(e) => setEditing({ ...editing, due_date: e.target.value })} className={`${inputCls} w-36`} />
+                      <div className="min-w-[320px]">
+                        <DateRangePickerInput
+                          from={editing.start_date}
+                          to={editing.due_date}
+                          onChange={({ from, to }) => setEditing({ ...editing, start_date: from, due_date: to })}
+                          placeholder="태스크 기간 선택"
+                        />
                       </div>
                       <div className="flex items-center gap-1.5">
                         <span className="text-[10px] text-gray-400">상태</span>
@@ -540,13 +541,13 @@ function EditRow({ editing, onChange, onSave, onCancel, saving, leftWidth }: New
         </div>
       </div>
       <div className="flex items-center gap-3 px-4 py-2">
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-gray-400">시작</span>
-          <input type="date" value={editing.start_date} onChange={(e) => set('start_date', e.target.value)} className={`${inputCls} w-36`} />
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-gray-400">종료</span>
-          <input type="date" value={editing.due_date} onChange={(e) => set('due_date', e.target.value)} className={`${inputCls} w-36`} />
+        <div className="min-w-[320px]">
+          <DateRangePickerInput
+            from={editing.start_date}
+            to={editing.due_date}
+            onChange={({ from, to }) => onChange({ ...editing, start_date: from, due_date: to })}
+            placeholder="태스크 기간 선택"
+          />
         </div>
         <div className="flex items-center gap-1.5">
           <span className="text-[10px] text-gray-400">상태</span>

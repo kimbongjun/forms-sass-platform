@@ -173,20 +173,20 @@ export default function InsightsPage() {
       {/* 헤더 */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">운영 결과 보고서</h2>
-          <p className="mt-0.5 text-sm text-gray-400">
+          <h2 className="theme-title text-lg font-semibold">운영 결과 보고서</h2>
+          <p className="theme-subtle mt-0.5 text-sm">
             산출물 전체의 SNS 합산 지표 및 미디어 노출 현황을 한눈에 확인합니다.
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
           {lastSynced && (
-            <p className="text-xs text-gray-400">마지막 갱신: {formatSyncTime(lastSynced)}</p>
+            <p className="theme-subtle text-xs">마지막 갱신: {formatSyncTime(lastSynced)}</p>
           )}
           <button
             type="button"
             onClick={() => fetchData(true)}
             disabled={refreshing}
-            className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-40"
+            className="theme-panel theme-body theme-hover-surface flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm transition-colors disabled:opacity-40"
           >
             <RefreshCw className={['h-4 w-4', refreshing ? 'animate-spin' : ''].join(' ')} />
             새로고침
@@ -206,20 +206,20 @@ export default function InsightsPage() {
             {kpiCards.map((card) => {
               const Icon = card.icon
               return (
-                <div key={card.label} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                <div key={card.label} className="theme-panel rounded-2xl border p-5 shadow-sm">
                   <div className={`mb-3 inline-flex rounded-xl p-2 ${card.bg}`}>
                     <Icon className={`h-5 w-5 ${card.color}`} />
                   </div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">{card.label}</p>
-                  <p className="mt-2 text-3xl font-semibold tracking-tight text-gray-900">{card.value}</p>
+                  <p className="theme-subtle text-xs font-semibold uppercase tracking-wide">{card.label}</p>
+                  <p className="theme-title mt-2 text-3xl font-semibold tracking-tight">{card.value}</p>
                 </div>
               )
             })}
           </div>
 
           {/* 세부 인게이지먼트 분해 */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-            <h3 className="mb-4 text-sm font-semibold text-gray-900">인게이지먼트 상세</h3>
+          <div className="theme-panel rounded-2xl border p-6 shadow-sm">
+            <h3 className="theme-title mb-4 text-sm font-semibold">인게이지먼트 상세</h3>
             <div className="grid gap-4 sm:grid-cols-3">
               {[
                 { label: '좋아요', value: totalLikes, icon: Heart, color: 'text-pink-500' },
@@ -228,11 +228,11 @@ export default function InsightsPage() {
               ].map((item) => {
                 const Icon = item.icon
                 return (
-                  <div key={item.label} className="flex items-center gap-3 rounded-xl bg-gray-50 p-4">
+                  <div key={item.label} className="theme-panel-soft flex items-center gap-3 rounded-xl p-4">
                     <Icon className={`h-5 w-5 shrink-0 ${item.color}`} />
                     <div>
-                      <p className="text-xs text-gray-400">{item.label}</p>
-                      <p className="text-xl font-semibold text-gray-900">{formatNum(item.value)}</p>
+                      <p className="theme-subtle text-xs">{item.label}</p>
+                      <p className="theme-title text-xl font-semibold">{formatNum(item.value)}</p>
                     </div>
                   </div>
                 )
@@ -242,8 +242,8 @@ export default function InsightsPage() {
 
           {/* 플랫폼별 분석 */}
           {Object.keys(byPlatform).length > 0 && (
-            <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-              <h3 className="mb-4 text-sm font-semibold text-gray-900">플랫폼별 성과</h3>
+            <div className="theme-panel rounded-2xl border p-6 shadow-sm">
+              <h3 className="theme-title mb-4 text-sm font-semibold">플랫폼별 성과</h3>
               <div className="space-y-3">
                 {Object.entries(byPlatform)
                   .sort((a, b) => b[1].views - a[1].views)
@@ -257,22 +257,22 @@ export default function InsightsPage() {
                             <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${PLATFORM_COLORS[platform as Platform]}`}>
                               {PLATFORM_LABELS[platform as Platform]}
                             </span>
-                            <span className="text-xs text-gray-400">{stats.count}건</span>
+                            <span className="theme-subtle text-xs">{stats.count}건</span>
                           </div>
-                          <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 sm:justify-end">
+                          <div className="theme-muted flex flex-wrap items-center gap-3 text-xs sm:justify-end">
                             <span className="flex items-center gap-1">
-                              <Eye className="h-3.5 w-3.5 text-gray-400" />
+                              <Eye className="theme-subtle h-3.5 w-3.5" />
                               {formatNum(stats.views)}
                             </span>
                             <span className="flex items-center gap-1">
-                              <TrendingUp className="h-3.5 w-3.5 text-gray-400" />
+                              <TrendingUp className="theme-subtle h-3.5 w-3.5" />
                               {formatNum(stats.engagement)}
                             </span>
                           </div>
                         </div>
-                        <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
+                        <div className="theme-progress-track h-2 w-full overflow-hidden rounded-full">
                           <div
-                            className="h-full rounded-full bg-gray-700 transition-all duration-500"
+                            className="theme-progress-fill h-full rounded-full transition-all duration-500"
                             style={{ width: `${pct}%` }}
                           />
                         </div>
@@ -285,40 +285,40 @@ export default function InsightsPage() {
 
           {/* 주요 보도자료 */}
           {clippings.length > 0 && (
-            <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="theme-panel rounded-2xl border p-6 shadow-sm">
               <div className="mb-4 flex items-center gap-2">
-                <Newspaper className="h-4 w-4 text-gray-400" />
-                <h3 className="text-sm font-semibold text-gray-900">주요 보도자료 및 클리핑</h3>
-                <span className="ml-auto rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-600">
+                <Newspaper className="theme-subtle h-4 w-4" />
+                <h3 className="theme-title text-sm font-semibold">주요 보도자료 및 클리핑</h3>
+                <span className="theme-badge-neutral ml-auto rounded-full px-2.5 py-0.5 text-xs font-semibold">
                   총 {clippings.length}건
                 </span>
               </div>
               <ol className="space-y-2.5">
                 {clippings.map((c, i) => (
                   <li key={c.id} className="flex items-start gap-3">
-                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-500">
+                    <span className="theme-panel-soft theme-body mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-semibold">
                       {i + 1}
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         {c.source && (
-                          <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-600">
+                          <span className="theme-badge-neutral rounded px-1.5 py-0.5 text-xs font-medium">
                             {c.source}
                           </span>
                         )}
-                        <span className="text-xs text-gray-400">{formatDate(c.published_at)}</span>
+                        <span className="theme-subtle text-xs">{formatDate(c.published_at)}</span>
                       </div>
                       <a
                         href={c.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="mt-0.5 flex items-center gap-1 text-sm font-medium text-gray-800 hover:text-gray-600"
+                        className="theme-title mt-0.5 flex items-center gap-1 text-sm font-medium hover:text-gray-600"
                       >
                         {c.title}
-                        <ExternalLink className="h-3 w-3 shrink-0 text-gray-400" />
+                        <ExternalLink className="theme-subtle h-3 w-3 shrink-0" />
                       </a>
                       {c.description && (
-                        <p className="mt-0.5 text-xs text-gray-400 line-clamp-1">{c.description}</p>
+                        <p className="theme-subtle mt-0.5 line-clamp-1 text-xs">{c.description}</p>
                       )}
                     </div>
                   </li>
@@ -329,10 +329,10 @@ export default function InsightsPage() {
 
           {/* 산출물 없을 때 */}
           {deliverables.length === 0 && clippings.length === 0 && (
-            <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-white px-4 py-12 text-center sm:py-24">
+            <div className="theme-panel flex flex-col items-center justify-center rounded-2xl border-2 border-dashed px-4 py-12 text-center sm:py-24">
               <BarChart3 className="mb-4 h-12 w-12 text-gray-300" />
-              <p className="text-base font-medium text-gray-500">아직 데이터가 없습니다.</p>
-              <p className="mt-1 text-sm text-gray-400">산출물 관리 또는 보도자료 클리핑에서 데이터를 먼저 등록하세요.</p>
+              <p className="theme-muted text-base font-medium">아직 데이터가 없습니다.</p>
+              <p className="theme-subtle mt-1 text-sm">산출물 관리 또는 보도자료 클리핑에서 데이터를 먼저 등록하세요.</p>
             </div>
           )}
         </>

@@ -12,6 +12,7 @@ import { uploadSiteAsset } from '@/utils/supabase/storage'
 const RichTextEditor = dynamic(() => import('@/components/builder/RichTextEditor'), { ssr: false })
 
 interface SiteSettings {
+  logo_url?: string
   site_title?: string
   site_description?: string
   favicon_url?: string
@@ -44,6 +45,7 @@ export default function AdminSettingsForm({ initialSettings, integrationStatus }
   const [settings, setSettings] = useState<SiteSettings>({
     site_title: '',
     site_description: '',
+    logo_url: '',
     favicon_url: '',
     og_image_url: '',
     footer_text: '',
@@ -61,22 +63,27 @@ export default function AdminSettingsForm({ initialSettings, integrationStatus }
   const [activeTab, setActiveTab] = useState<'general' | 'legal'>('general')
   const [uploadingOg, setUploadingOg] = useState(false)
   const [uploadingFavicon, setUploadingFavicon] = useState(false)
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+  const logoInputRef = useRef<HTMLInputElement>(null)
   const ogInputRef = useRef<HTMLInputElement>(null)
   const faviconInputRef = useRef<HTMLInputElement>(null)
 
   const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']
   const ALLOWED_FAVICON_TYPES = ['image/x-icon', 'image/png', 'image/svg+xml', 'image/vnd.microsoft.icon']
+  const ALLOWED_LOGO_TYPES = ['image/svg+xml']
   const MAX_FILE_SIZE_MB = 5
 
   async function handleFileUpload(
     file: File,
-    type: 'og-image' | 'favicon',
+    type: 'og-image' | 'favicon' | 'logo',
     setUploading: (v: boolean) => void,
-    settingKey: 'og_image_url' | 'favicon_url'
+    settingKey: 'og_image_url' | 'favicon_url' | 'logo_url'
   ) {
-    const allowed = type === 'favicon'
-      ? [...ALLOWED_IMAGE_TYPES, ...ALLOWED_FAVICON_TYPES]
-      : ALLOWED_IMAGE_TYPES
+    const allowed = type === 'logo'
+      ? ALLOWED_LOGO_TYPES
+      : type === 'favicon'
+        ? [...ALLOWED_IMAGE_TYPES, ...ALLOWED_FAVICON_TYPES]
+        : ALLOWED_IMAGE_TYPES
     if (!allowed.includes(file.type)) {
       setError(`허용되지 않는 파일 형식입니다. (${file.type})`)
       return
@@ -127,6 +134,9 @@ export default function AdminSettingsForm({ initialSettings, integrationStatus }
 
   const inputClass =
     'w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gray-900'
+  const darkLogoPreviewUrl = settings.logo_url
+    ? `/api/site-logo?mode=dark&url=${encodeURIComponent(settings.logo_url)}`
+    : ''
 
   return (
     <div>
@@ -187,6 +197,90 @@ export default function AdminSettingsForm({ initialSettings, integrationStatus }
 
         {activeTab === 'general' && (
           <>
+            <section className="rounded-2xl border border-gray-200 bg-white p-6 space-y-4">
+              <div>
+                <h2 className="text-sm font-semibold text-gray-900">로고</h2>
+                <p className="mt-1 text-xs text-gray-500">
+                  전역 헤더, 로그인, 랜딩에 공통 적용됩니다. 다크 모드 자동 처리를 위해 SVG 업로드만 허용합니다.
+                </p>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-gray-500">사이트 로고 (.svg)</label>
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept=".svg,image/svg+xml"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) handleFileUpload(file, 'logo', setUploadingLogo, 'logo_url')
+                    e.target.value = ''
+                  }}
+                />
+                {settings.logo_url ? (
+                  <div className="space-y-4">
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Light</p>
+                        <div className="flex min-h-24 items-center justify-center rounded-xl border border-gray-200 bg-white p-4">
+                          <Image
+                            src={settings.logo_url}
+                            alt="logo light preview"
+                            width={180}
+                            height={40}
+                            unoptimized
+                            className="max-h-10 w-auto object-contain"
+                          />
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-gray-200 bg-gray-900 p-4">
+                        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Dark</p>
+                        <div className="flex min-h-24 items-center justify-center rounded-xl border border-white/10 bg-slate-950 p-4">
+                          <Image
+                            src={darkLogoPreviewUrl}
+                            alt="logo dark preview"
+                            width={180}
+                            height={40}
+                            unoptimized
+                            className="max-h-10 w-auto object-contain"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => logoInputRef.current?.click()}
+                        disabled={uploadingLogo}
+                        className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                      >
+                        {uploadingLogo ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                        {uploadingLogo ? '업로드 중...' : '변경'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => set('logo_url', '')}
+                        className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-red-500 hover:bg-red-50 transition-colors"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                        제거
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => logoInputRef.current?.click()}
+                    disabled={uploadingLogo}
+                    className="flex h-24 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-200 text-sm text-gray-400 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                  >
+                    {uploadingLogo ? <Loader2 className="h-5 w-5 animate-spin" /> : <Upload className="h-5 w-5" />}
+                    {uploadingLogo ? '업로드 중...' : 'SVG 로고 파일 선택'}
+                  </button>
+                )}
+              </div>
+            </section>
+
             {/* SEO / 메타 */}
             <section className="rounded-2xl border border-gray-200 bg-white p-6 space-y-4">
               <h2 className="text-sm font-semibold text-gray-900">SEO / 메타 정보</h2>

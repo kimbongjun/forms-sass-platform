@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
 import type { FormField } from '@/types/database'
+import { stripHtml } from '@/utils/rich-text'
 
 interface Submission {
   id: string
@@ -46,7 +47,7 @@ export default function ResponsesTable({ submissions, inputFields, page, totalPa
             <div className="divide-y divide-gray-50 p-5">
               {inputFields.map((f) => (
                 <div key={f.id} className="py-3">
-                  <p className="mb-1 text-xs font-medium text-gray-500">{f.label || '(제목 없음)'}</p>
+                  <p className="mb-1 text-xs font-medium text-gray-500">{stripHtml(f.label) || '(제목 없음)'}</p>
                   <p className="text-sm text-gray-900 whitespace-pre-wrap break-words">
                     {formatValue(detailSub.answers?.[f.id])}
                   </p>
@@ -66,7 +67,7 @@ export default function ResponsesTable({ submissions, inputFields, page, totalPa
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">제출 시각</th>
                 {inputFields.map((f) => (
                   <th key={f.id} className="px-4 py-3 text-left text-xs font-semibold text-gray-500">
-                    <span className="block max-w-[160px] truncate">{f.label || '(제목 없음)'}</span>
+                    <span className="block max-w-[160px] truncate">{stripHtml(f.label) || '(제목 없음)'}</span>
                   </th>
                 ))}
               </tr>

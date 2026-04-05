@@ -10,11 +10,13 @@ import {
   Type, AtSign, AlignLeft, CheckSquare,
   ChevronDown, CircleDot, LayoutList, Code2,
   MapPin, PlaySquare, AlignJustify, Image as ImageIcon, Minus, Upload, Loader2, Table2,
-  Star, Layers,
+  Star, Layers, CalendarDays,
 } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 import { uploadFieldImage } from '@/utils/supabase/storage'
 import type { FormField, FieldType } from '@/types/database'
+import FieldLabelEditor from './FieldLabelEditor'
+import { stripHtml } from '@/utils/rich-text'
 
 // WYSIWYG 에디터는 SSR 제외
 const RichTextEditor = dynamic(() => import('./RichTextEditor'), { ssr: false })
@@ -35,6 +37,7 @@ export const FIELD_TYPE_META: Record<
   select:        { label: '셀렉박스',     icon: <ChevronDown className="h-3.5 w-3.5" />,     color: 'bg-orange-100 text-orange-700' },
   radio:         { label: '라디오',       icon: <CircleDot className="h-3.5 w-3.5" />,       color: 'bg-pink-100 text-pink-700' },
   checkbox_group:{ label: '체크박스 그룹', icon: <LayoutList className="h-3.5 w-3.5" />,      color: 'bg-teal-100 text-teal-700' },
+  date:          { label: '날짜',         icon: <CalendarDays className="h-3.5 w-3.5" />,       color: 'bg-cyan-100 text-cyan-700' },
   html:          { label: 'HTML',         icon: <Code2 className="h-3.5 w-3.5" />,            color: 'bg-gray-200 text-gray-700' },
   map:           { label: '지도',         icon: <MapPin className="h-3.5 w-3.5" />,           color: 'bg-emerald-100 text-emerald-700' },
   youtube:       { label: 'YouTube',      icon: <PlaySquare className="h-3.5 w-3.5" />,       color: 'bg-red-100 text-red-700' },
@@ -136,7 +139,7 @@ export default function FieldCard({ field, allFields = [], onUpdate, onRemove }:
   const meta = FIELD_TYPE_META[field.type]
   const isMultiOption = MULTI_OPTION_TYPES.includes(field.type)
 
-  const isInputType = ['text', 'email', 'textarea', 'checkbox', 'select', 'radio', 'checkbox_group', 'rating'].includes(field.type)
+  const isInputType = ['text', 'email', 'textarea', 'checkbox', 'select', 'radio', 'checkbox_group', 'date', 'rating'].includes(field.type)
   const isHtml = field.type === 'html'
   const isTextBlock = field.type === 'text_block'
   const isImage = field.type === 'image'
@@ -242,12 +245,10 @@ export default function FieldCard({ field, allFields = [], onUpdate, onRemove }:
 
         {/* Label input */}
         {showLabel && (
-          <input
-            type="text"
-            value={field.label.replace(/<[^>]+>/g, '')}
-            onChange={(e) => onUpdate({ label: e.target.value })}
+          <FieldLabelEditor
+            value={field.label}
+            onChange={(nextLabel) => onUpdate({ label: nextLabel })}
             placeholder={isSection ? '섹션 제목' : '필드 레이블'}
-            className="flex-1 rounded-lg border border-gray-100 bg-gray-50 px-3 py-1.5 text-sm text-gray-900 placeholder-gray-400 focus:border-transparent focus:bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
           />
         )}
 
@@ -352,7 +353,7 @@ export default function FieldCard({ field, allFields = [], onUpdate, onRemove }:
                 >
                   <option value="">→ 다음 섹션 (순서대로)</option>
                   {sectionFields.map((s) => (
-                    <option key={s.id} value={s.id}>{s.label || `섹션 (${s.id.slice(0, 6)})`}</option>
+                    <option key={s.id} value={s.id}>{stripHtml(s.label) || `섹션 (${s.id.slice(0, 6)})`}</option>
                   ))}
                 </select>
               </div>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createServerClient } from '@/utils/supabase/server'
 import type { FormField } from '@/types/database'
+import { stripHtml } from '@/utils/rich-text'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -11,7 +12,7 @@ interface SubmitBody {
   fields: Pick<FormField, 'id' | 'label' | 'type'>[]
 }
 
-const INPUT_TYPES = ['text', 'email', 'textarea', 'checkbox', 'select', 'radio', 'checkbox_group']
+const INPUT_TYPES = ['text', 'email', 'textarea', 'checkbox', 'select', 'radio', 'checkbox_group', 'date']
 
 // ── 이메일 공통 래퍼 HTML ────────────────────────────────────────────────────
 function wrapEmailLayout(innerHtml: string, title: string): string {
@@ -40,7 +41,7 @@ function buildAnswersTable(
       else display = (val as string) ?? '(미입력)'
       return `
         <tr>
-          <td style="padding:10px 14px;border-bottom:1px solid #f0f0f0;color:#555;font-size:13px;width:38%;vertical-align:top">${f.label || '(제목 없음)'}</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #f0f0f0;color:#555;font-size:13px;width:38%;vertical-align:top">${stripHtml(f.label) || '(제목 없음)'}</td>
           <td style="padding:10px 14px;border-bottom:1px solid #f0f0f0;color:#111;font-size:13px">${display}</td>
         </tr>`
     })
@@ -137,7 +138,7 @@ export async function POST(req: NextRequest) {
             projectTitle: project.title,
             submittedAt: new Date().toISOString(),
             answers: Object.fromEntries(
-              inputFields.map((f) => [f.label || f.id, answers[f.id]])
+              inputFields.map((f) => [stripHtml(f.label) || f.id, answers[f.id]])
             ),
           }),
         })

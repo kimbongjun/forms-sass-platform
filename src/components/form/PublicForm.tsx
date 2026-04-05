@@ -3,8 +3,10 @@
 import { useState, useMemo } from 'react'
 import Image from 'next/image'
 import { CheckCircle2, Loader2, Globe, Star, ChevronLeft, ChevronRight } from 'lucide-react'
+import { DatePickerInput } from '@/components/common/DatePickerInput'
 import type { FormField, LocaleSettings, Locale } from '@/types/database'
 import { resolveLocaleStrings, LOCALE_LABELS } from '@/constants/locale'
+import { stripHtml } from '@/utils/rich-text'
 
 // ── 섹션 분리 헬퍼 ──────────────────────────────────────────────────────────
 interface Page {
@@ -28,10 +30,6 @@ function splitSections(fields: FormField[]): Page[] {
   // 맨 앞 페이지 필드 없으면 제거
   if (pages[0]?.fields.length === 0 && pages.length > 1) pages.shift()
   return pages
-}
-
-function stripHtml(html: string) {
-  return html.replace(/<[^>]*>/g, '').trim()
 }
 
 const NON_INPUT_TYPES = ['html', 'map', 'youtube', 'text_block', 'image', 'divider', 'table', 'section']
@@ -305,7 +303,7 @@ function FieldRenderer({ field, value, onChange, onToggleCheckbox, themeColor, t
       <figure>
         <Image
           src={field.content}
-          alt={field.label}
+          alt={stripHtml(field.label)}
           width={1600}
           height={900}
           unoptimized
@@ -403,7 +401,7 @@ function FieldRenderer({ field, value, onChange, onToggleCheckbox, themeColor, t
     return (
       <div className="space-y-1.5">
         <label className="block text-sm font-medium text-gray-800">
-          {field.label || '(제목 없음)'}
+          <span dangerouslySetInnerHTML={{ __html: field.label || '(제목 없음)' }} />
           {field.required && <span className="ml-1 text-red-500">*</span>}
         </label>
         {field.description && <p className="text-xs text-gray-500">{field.description}</p>}
@@ -434,7 +432,7 @@ function FieldRenderer({ field, value, onChange, onToggleCheckbox, themeColor, t
   return (
     <div className="space-y-1.5">
       <label className="block text-sm font-medium text-gray-800">
-        {field.label || '(제목 없음)'}
+        <span dangerouslySetInnerHTML={{ __html: field.label || '(제목 없음)' }} />
         {field.required && <span className="ml-1 text-red-500">*</span>}
       </label>
       {field.description && (
@@ -449,6 +447,13 @@ function FieldRenderer({ field, value, onChange, onToggleCheckbox, themeColor, t
       )}
       {field.type === 'textarea' && (
         <textarea rows={4} value={(value as string) ?? ''} onChange={(e) => onChange(e.target.value)} required={field.required} className={`${inputClass} resize-y`} />
+      )}
+      {field.type === 'date' && (
+        <DatePickerInput
+          value={(value as string) ?? ''}
+          onChange={onChange as (value: string) => void}
+          placeholder="날짜를 선택하세요"
+        />
       )}
       {field.type === 'checkbox' && (
         <label className="flex cursor-pointer items-center gap-2.5 text-sm text-gray-700">

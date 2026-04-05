@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, ArrowRight, Check, Loader2, MapPin, Pencil, Plus, Trash2, Users } from 'lucide-react'
+import { DateRangePickerInput } from '@/components/common/DatePickerInput'
 import { createClient } from '@/utils/supabase/client'
 import { COUNTRY_OPTIONS } from '@/constants/countries'
 import { formatNumberWithCommas, parseNumberInput } from '@/utils/money'
@@ -334,26 +335,17 @@ export default function ProjectWizard({
             </div>
 
             {/* 기간 */}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className="mb-1.5 block text-xs font-medium text-gray-500">시작일</label>
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-xs font-medium text-gray-500">종료일</label>
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  min={startDate}
-                  className={inputCls}
-                />
-              </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-gray-500">프로젝트 기간</label>
+              <DateRangePickerInput
+                from={startDate}
+                to={endDate}
+                onChange={({ from, to }) => {
+                  setStartDate(from)
+                  setEndDate(to)
+                }}
+                placeholder="시작일과 종료일을 선택하세요"
+              />
             </div>
 
             {/* 예산 */}

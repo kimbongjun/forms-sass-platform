@@ -1,7 +1,6 @@
-import Image from 'next/image'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import classysLogo from '@/imgs/classys_logo.svg'
+import SiteLogo from '@/components/common/SiteLogo'
 import { createServerClient, getUserRole } from '@/utils/supabase/server'
 import { getGlobalSiteSettings, getResolvedSiteTitle } from '@/utils/site-settings'
 import UserMenu from '@/components/dashboard/UserMenu'
@@ -28,7 +27,7 @@ export default async function WorkspaceShell({ children }: WorkspaceShellProps) 
       role={role}
       header={
         <Link href="/dashboard" className="flex items-center gap-3 transition-opacity hover:opacity-80">
-          <Image src={classysLogo} alt={siteTitle} width={118} height={26} priority className="h-7 w-auto" />
+          <SiteLogo settings={siteSettings} alt={siteTitle} className="h-7 w-auto" />
           <span className="hidden text-sm font-semibold text-gray-900 sm:inline">{siteTitle}</span>
         </Link>
       }

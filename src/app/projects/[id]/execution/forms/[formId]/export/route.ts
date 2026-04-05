@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@/utils/supabase/server'
 import type { FormField } from '@/types/database'
+import { stripHtml } from '@/utils/rich-text'
 
-const CSV_INPUT_TYPES = new Set(['text', 'email', 'textarea', 'checkbox', 'select', 'radio', 'checkbox_group', 'rating'])
+const CSV_INPUT_TYPES = new Set(['text', 'email', 'textarea', 'checkbox', 'select', 'radio', 'checkbox_group', 'date', 'rating'])
 
 function escapeCsvCell(value: string) {
   if (/[",\n]/.test(value)) {
@@ -77,7 +78,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
     }
 
     const inputFields = ((fields ?? []) as FormField[]).filter((field) => CSV_INPUT_TYPES.has(field.type))
-    const headers = ['제출 시각', ...inputFields.map((field) => field.label?.trim() || '(제목 없음)')]
+    const headers = ['제출 시각', ...inputFields.map((field) => stripHtml(field.label ?? '') || '(제목 없음)')]
 
     const rows = (submissions ?? []).map((submission) => {
       const answers = (submission.answers ?? {}) as Record<string, unknown>

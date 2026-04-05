@@ -6,8 +6,9 @@ import { BarChart2, Download } from 'lucide-react'
 import { SectionSkeleton, SkeletonBlock } from '@/components/common/LoadingSkeleton'
 import { createClient } from '@/utils/supabase/client'
 import type { FormField } from '@/types/database'
+import { stripHtml } from '@/utils/rich-text'
 
-const INPUT_TYPES = ['text', 'email', 'textarea', 'checkbox', 'select', 'radio', 'checkbox_group']
+const INPUT_TYPES = ['text', 'email', 'textarea', 'checkbox', 'select', 'radio', 'checkbox_group', 'date']
 const STAT_TYPES = ['select', 'radio', 'checkbox_group']
 const LOAD_LIMIT = 100
 
@@ -139,7 +140,7 @@ export default function ResponsesTab({ workspaceId, projectId, projectSlug, fiel
 
                     return (
                       <div key={field.id} className="rounded-2xl border border-gray-200 bg-white p-5">
-                        <p className="mb-3 text-sm font-semibold text-gray-800">{field.label || '(제목 없음)'}</p>
+                        <p className="mb-3 text-sm font-semibold text-gray-800">{stripHtml(field.label) || '(제목 없음)'}</p>
                         <div className="space-y-2">
                           {entries.length === 0 ? (
                             <p className="text-xs text-gray-400">응답 없음</p>
@@ -180,7 +181,7 @@ export default function ResponsesTab({ workspaceId, projectId, projectSlug, fiel
                           </th>
                           {inputFields.slice(0, 3).map((field) => (
                             <th key={field.id} className="max-w-[160px] px-4 py-3 text-left text-xs font-semibold text-gray-600">
-                              {field.label || '(제목 없음)'}
+                              {stripHtml(field.label) || '(제목 없음)'}
                             </th>
                           ))}
                         </tr>

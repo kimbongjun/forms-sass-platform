@@ -18,6 +18,7 @@ export type FieldType =
   | 'select'
   | 'radio'
   | 'checkbox_group'
+  | 'date'
   | 'rating'
   | 'section'
   | 'html'

@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "react-day-picker/style.css";
 
 :root {
   --background: #ffffff;
@@ -7,6 +8,7 @@
   --surface-2: #f8fafc;
   --surface-3: #f1f5f9;
   --surface-4: #e2e8f0;
+  --surface-overlay: rgba(255, 255, 255, 0.82);
   --border-subtle: #e5e7eb;
   --border-strong: #cbd5e1;
   --text-strong: #111827;
@@ -45,6 +47,7 @@
   --surface-2: #152033;
   --surface-3: #1d2940;
   --surface-4: #24324c;
+  --surface-overlay: rgba(15, 23, 42, 0.84);
   --border-subtle: #263244;
   --border-strong: #34445f;
   --text-strong: #f8fafc;
@@ -116,6 +119,72 @@ select {
 .brand-btn:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px var(--color-primary-ring);
+}
+
+.theme-panel {
+  border-color: var(--border-subtle) !important;
+  background-color: var(--surface-1) !important;
+}
+
+.theme-panel-soft {
+  border-color: var(--border-subtle) !important;
+  background-color: var(--surface-2) !important;
+}
+
+.theme-overlay {
+  background-color: var(--surface-overlay) !important;
+  backdrop-filter: blur(18px);
+}
+
+.theme-divider {
+  border-color: var(--border-subtle) !important;
+}
+
+.theme-title {
+  color: var(--text-strong) !important;
+}
+
+.theme-body {
+  color: var(--text-body) !important;
+}
+
+.theme-muted {
+  color: var(--text-muted) !important;
+}
+
+.theme-subtle {
+  color: var(--text-subtle) !important;
+}
+
+.theme-input {
+  border-color: var(--border-subtle) !important;
+  background-color: var(--surface-1) !important;
+  color: var(--text-body) !important;
+}
+
+.theme-input::placeholder {
+  color: var(--text-subtle) !important;
+}
+
+.theme-hover-surface:hover {
+  background-color: var(--surface-2) !important;
+}
+
+.theme-progress-track {
+  background-color: var(--surface-3) !important;
+}
+
+.theme-progress-fill {
+  background-color: var(--color-primary) !important;
+}
+
+.theme-badge-neutral {
+  background-color: var(--surface-3) !important;
+  color: var(--text-body) !important;
+}
+
+.site-logo-dark {
+  display: none;
 }
 
 button[class*="bg-gray-900"][class*="text-white"],
@@ -228,20 +297,63 @@ a[class*="bg-gray-900"][class*="text-white"]:focus-visible {
   background-color: var(--success-soft) !important;
 }
 
+[data-theme='dark'] .bg-emerald-50,
+[data-theme='dark'] .bg-emerald-100 {
+  background-color: #07392e !important;
+}
+
 [data-theme='dark'] .text-green-700,
 [data-theme='dark'] .text-green-600,
 [data-theme='dark'] .text-green-500 {
   color: var(--success-text) !important;
 }
 
+[data-theme='dark'] .text-emerald-700,
+[data-theme='dark'] .text-emerald-600,
+[data-theme='dark'] .text-emerald-500 {
+  color: #7cf0c3 !important;
+}
+
 [data-theme='dark'] .bg-blue-50 {
   background-color: var(--info-soft) !important;
+}
+
+[data-theme='dark'] .bg-blue-100,
+[data-theme='dark'] .bg-sky-100 {
+  background-color: #13345b !important;
 }
 
 [data-theme='dark'] .text-blue-700,
 [data-theme='dark'] .text-blue-600,
 [data-theme='dark'] .text-blue-500 {
   color: var(--info-text) !important;
+}
+
+[data-theme='dark'] .text-sky-700,
+[data-theme='dark'] .text-sky-600,
+[data-theme='dark'] .text-sky-500 {
+  color: #8ed2ff !important;
+}
+
+[data-theme='dark'] .bg-violet-50,
+[data-theme='dark'] .bg-violet-100 {
+  background-color: #2a1b52 !important;
+}
+
+[data-theme='dark'] .text-violet-700,
+[data-theme='dark'] .text-violet-600,
+[data-theme='dark'] .text-violet-500 {
+  color: #c4b5fd !important;
+}
+
+[data-theme='dark'] .bg-pink-100 {
+  background-color: #4a1938 !important;
+}
+
+[data-theme='dark'] .text-pink-700,
+[data-theme='dark'] .text-pink-600,
+[data-theme='dark'] .text-pink-500 {
+  color: #f9a8d4 !important;
 }
 
 [data-theme='dark'] input,
@@ -260,4 +372,12 @@ a[class*="bg-gray-900"][class*="text-white"]:focus-visible {
   background-color: var(--surface-1) !important;
   color: var(--text-body) !important;
   border-color: var(--border-subtle) !important;
+}
+
+[data-theme='dark'] .site-logo-light {
+  display: none;
+}
+
+[data-theme='dark'] .site-logo-dark {
+  display: inline-block;
 }
