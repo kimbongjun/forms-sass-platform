@@ -44,11 +44,11 @@ interface ProjectListProps {
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
-  'PR': 'bg-blue-100 text-blue-700',
-  '디지털 마케팅': 'bg-violet-100 text-violet-700',
-  '바이럴': 'bg-pink-100 text-pink-700',
-  'HCP 마케팅': 'bg-emerald-100 text-emerald-700',
-  'B2B 마케팅': 'bg-amber-100 text-amber-700',
+  'PR': 'theme-status-badge-progress',
+  '디지털 마케팅': 'bg-violet-700 text-violet-50 border border-violet-800',
+  '바이럴': 'bg-pink-700 text-pink-50 border border-pink-800',
+  'HCP 마케팅': 'theme-status-badge-done',
+  'B2B 마케팅': 'theme-status-badge-hold',
 }
 
 function formatDateShort(d: string | null) {
@@ -204,16 +204,18 @@ export default function ProjectList({ projects }: ProjectListProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* 검색 필터 패널 */}
-      <div className="theme-panel rounded-2xl border p-4 shadow-sm sm:p-5">
-        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <p className="theme-subtle text-xs font-semibold uppercase tracking-[0.2em]">검색 필터</p>
+      <div className="theme-panel rounded-2xl border p-3 shadow-sm sm:p-4">
+        <div className="mb-3 flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="theme-subtle text-[11px] font-semibold uppercase tracking-[0.2em]">Project Search</p>          
+          </div>
           {hasFilter && (
             <button
               type="button"
               onClick={clearFilters}
-              className="theme-muted flex items-center gap-1 text-xs hover:text-gray-600"
+              className="theme-btn-secondary inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium"
             >
               <X className="h-3.5 w-3.5" />
               초기화
@@ -222,7 +224,7 @@ export default function ProjectList({ projects }: ProjectListProps) {
         </div>
 
         {/* Row 1: 프로젝트명 + 카테고리 + 국가 */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
           <div className="relative">
             <Search className="theme-subtle pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2" />
             <input
@@ -230,14 +232,14 @@ export default function ProjectList({ projects }: ProjectListProps) {
               value={filterTitle}
               onChange={(e) => setFilterTitle(e.target.value)}
               placeholder="프로젝트명"
-              className="theme-input w-full rounded-xl border py-2.5 pl-9 pr-3 text-sm focus:border-gray-400 focus:outline-none"
+              className="theme-input w-full rounded-xl border py-2 pl-9 pr-3 text-sm focus:border-gray-400 focus:outline-none"
             />
           </div>
 
           <select
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
-            className="theme-input w-full rounded-xl border px-3 py-2.5 text-sm focus:border-gray-400 focus:outline-none"
+            className="theme-input w-full rounded-xl border px-3 py-2 text-sm focus:border-gray-400 focus:outline-none"
           >
             <option value="">카테고리 전체</option>
             {categoryOptions.map((c) => (
@@ -248,7 +250,7 @@ export default function ProjectList({ projects }: ProjectListProps) {
           <select
             value={filterCountry}
             onChange={(e) => setFilterCountry(e.target.value)}
-            className="theme-input w-full rounded-xl border px-3 py-2.5 text-sm focus:border-gray-400 focus:outline-none"
+            className="theme-input w-full rounded-xl border px-3 py-2 text-sm focus:border-gray-400 focus:outline-none"
           >
             <option value="">국가 전체</option>
             {COUNTRY_OPTIONS.map((c) => (
@@ -258,7 +260,7 @@ export default function ProjectList({ projects }: ProjectListProps) {
         </div>
 
         {/* Row 2: 기간 + 이름 */}
-        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="mt-2.5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
           {/* 기간 */}
           <DateRangePickerInput
             from={filterDateFrom}
@@ -278,23 +280,23 @@ export default function ProjectList({ projects }: ProjectListProps) {
               value={filterMemberName}
               onChange={(e) => setFilterMemberName(e.target.value)}
               placeholder="이름 (팀 구성원)"
-              className="theme-input w-full rounded-xl border py-2.5 pl-9 pr-3 text-sm focus:border-gray-400 focus:outline-none"
+              className="theme-input w-full rounded-xl border py-2 pl-9 pr-3 text-sm focus:border-gray-400 focus:outline-none"
             />
           </div>
         </div>
       </div>
 
       {/* 툴바 */}
-      <div className="theme-overlay theme-divider flex flex-col gap-3 rounded-xl border px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:py-2.5">
-        <label className="theme-body flex cursor-pointer select-none items-center gap-2.5 text-sm">
+      <div className="theme-overlay theme-divider flex flex-col gap-2 rounded-xl border px-3 py-2.5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <label className="theme-body flex cursor-pointer select-none items-center gap-2 text-sm">
           <input type="checkbox" checked={allSelected} onChange={toggleAll} className="h-4 w-4 rounded accent-gray-900" />
           전체 선택
           {visibleSelectedCount > 0 && (
-            <span className="ml-1 rounded-full bg-gray-900 px-2 py-0.5 text-xs text-white">{visibleSelectedCount}</span>
+            <span className="theme-btn-primary ml-1 rounded-full px-2 py-0.5 text-xs">{visibleSelectedCount}</span>
           )}
         </label>
 
-        <span className="theme-subtle text-xs">
+        <span className="theme-subtle text-[11px]">
           {hasFilter ? `${filtered.length} / ${projects.length}개` : `${projects.length}개`}
         </span>
 
@@ -306,12 +308,12 @@ export default function ProjectList({ projects }: ProjectListProps) {
                 type="button"
                 onClick={handleBulkDelete}
                 disabled={isPending || deletingIds.size > 0}
-                className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                className="theme-btn-danger flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium disabled:opacity-50"
               >
                 {(isPending || deletingIds.size > 0) && <Loader2 className="h-3 w-3 animate-spin" />}
                 삭제
               </button>
-              <button type="button" onClick={() => setConfirmBulk(false)} className="theme-panel theme-body theme-hover-surface rounded-lg border px-3 py-1.5 text-xs font-medium">
+              <button type="button" onClick={() => setConfirmBulk(false)} className="theme-btn-secondary rounded-lg px-3 py-1.5 text-xs font-medium">
                 취소
               </button>
             </div>
@@ -319,7 +321,7 @@ export default function ProjectList({ projects }: ProjectListProps) {
             <button
               type="button"
               onClick={() => setConfirmBulk(true)}
-              className="flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-50"
+              className="theme-btn-danger flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium"
             >
               <Trash2 className="h-3.5 w-3.5" />
               {visibleSelectedCount}개 삭제
@@ -341,7 +343,7 @@ export default function ProjectList({ projects }: ProjectListProps) {
 
       {/* 3×3 카드 그리드 */}
       {filtered.length > 0 && (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((project) => {
             const isDeleting = deletingIds.has(project.id)
             const isDuplicating = duplicatingId === project.id
@@ -353,7 +355,7 @@ export default function ProjectList({ projects }: ProjectListProps) {
                 key={project.id}
                 className={[
                   'group relative flex flex-col rounded-2xl border shadow-sm transition-all',
-                  isChecked ? 'theme-panel-soft border-gray-400' : 'theme-panel hover:border-gray-300 hover:shadow-md',
+                  isChecked ? 'theme-panel-soft border-gray-400 ring-2 ring-gray-300/60' : 'theme-panel hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md',
                   isDeleting ? 'pointer-events-none opacity-40' : '',
                 ].join(' ')}
               >
@@ -366,47 +368,47 @@ export default function ProjectList({ projects }: ProjectListProps) {
                   className="absolute left-4 top-4 h-4 w-4 rounded accent-gray-900"
                 />
 
-                <Link href={`/projects/${project.id}`} className="flex flex-1 flex-col p-5 pl-10">
+                <Link href={`/projects/${project.id}`} className="flex flex-1 flex-col p-4 pl-10 sm:p-5 sm:pl-10">
                   {/* 배지 */}
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     {project.category && catColor && (
                       <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${catColor}`}>
                         {project.category}
                       </span>
                     )}
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${project.is_published ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${project.is_published ? 'theme-status-badge-done' : 'theme-status-badge-todo'}`}>
                       {project.is_published ? '공개' : '비공개'}
                     </span>
                   </div>
 
                   {/* 제목 */}
-                  <p className="theme-title mt-3 text-base font-semibold leading-snug group-hover:text-gray-700">
+                  <p className="theme-title mt-2.5 text-base font-semibold leading-snug group-hover:text-gray-700 sm:text-[17px]">
                     {project.title}
                   </p>
 
                   {/* 오너 */}
                   {project.ownerName && (
-                    <p className="theme-subtle mt-1.5 text-xs">
+                    <p className="theme-subtle mt-1 text-xs">
                       오너 · <span className="theme-body font-medium">{project.ownerName}</span>
                     </p>
                   )}
 
                   {/* 메타 */}
-                  <div className="mt-3 flex flex-col gap-1.5">
+                  <div className="mt-3 grid gap-2">
                     {(project.start_date || project.end_date) && (
-                      <span className="theme-subtle flex items-center gap-1.5 text-xs">
+                      <span className="theme-panel-soft theme-subtle flex items-center gap-1.5 rounded-xl border px-2.5 py-2 text-xs">
                         <CalendarRange className="h-3.5 w-3.5 shrink-0" />
                         {formatDateShort(project.start_date) ?? '미정'} — {formatDateShort(project.end_date) ?? '미정'}
                       </span>
                     )}
                     {project.budget != null && (
-                      <span className="theme-subtle flex items-center gap-1.5 text-xs">
+                      <span className="theme-panel-soft theme-subtle flex items-center gap-1.5 rounded-xl border px-2.5 py-2 text-xs">
                         <DollarSign className="h-3.5 w-3.5 shrink-0" />
                         {formatNumberWithCommas(project.budget)}
                       </span>
                     )}
                     {project.country && (
-                      <span className="theme-subtle flex items-center gap-1.5 text-xs">
+                      <span className="theme-panel-soft theme-subtle flex items-center gap-1.5 rounded-xl border px-2.5 py-2 text-xs">
                         <Globe className="h-3.5 w-3.5 shrink-0" />
                         {resolveCountryFlag(project.country)} {resolveCountryLabel(project.country)}
                       </span>
@@ -414,15 +416,15 @@ export default function ProjectList({ projects }: ProjectListProps) {
                   </div>
 
                   {/* 하단 통계 */}
-                  <div className="theme-divider mt-4 flex flex-wrap items-center gap-3 border-t pt-3">
+                  <div className="theme-divider mt-4 flex flex-wrap items-center gap-2.5 border-t pt-3">
                     {project.memberCount > 0 && (
-                      <span className="theme-subtle flex items-center gap-1 text-xs">
+                      <span className="theme-subtle flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs dark:bg-white/5">
                         <Users className="h-3.5 w-3.5 shrink-0" />
                         팀원 {project.memberCount}명
                       </span>
                     )}
                     {project.formCount > 0 && (
-                      <span className="theme-subtle flex items-center gap-1 text-xs">
+                      <span className="theme-subtle flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs dark:bg-white/5">
                         <FileText className="h-3.5 w-3.5 shrink-0" />
                         폼 {project.formCount}개
                       </span>
@@ -434,12 +436,12 @@ export default function ProjectList({ projects }: ProjectListProps) {
                 </Link>
 
                 {/* 액션 버튼 */}
-                <div className="theme-divider flex flex-wrap items-center gap-1.5 border-t px-4 py-2.5">
+                <div className="theme-divider flex flex-wrap items-center gap-1.5 border-t px-4 py-2">
                   <button
                     type="button"
                     onClick={() => handleDuplicate(project.id)}
                     disabled={isDuplicating || deletingIds.size > 0}
-                    className="theme-panel theme-body theme-hover-surface flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors hover:border-gray-300 disabled:opacity-30"
+                    className="theme-btn-secondary flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium disabled:opacity-30"
                   >
                     {isDuplicating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Copy className="h-3.5 w-3.5" />}
                     복제
@@ -448,7 +450,7 @@ export default function ProjectList({ projects }: ProjectListProps) {
                     type="button"
                     onClick={() => handleDeleteOne(project.id, project.title)}
                     disabled={isDeleting || deletingIds.size > 0}
-                    className="theme-subtle rounded-lg p-1.5 transition-colors hover:bg-red-50 hover:text-red-500 disabled:opacity-30 sm:ml-auto"
+                    className="theme-btn-danger rounded-lg p-1.5 disabled:opacity-30 sm:ml-auto"
                     title="삭제"
                   >
                     {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}

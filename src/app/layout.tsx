@@ -95,6 +95,16 @@ export default async function RootLayout({
           '--color-dark-primary-soft-border': primaryPalette.darkPrimarySoftBorder,
           '--color-dark-primary-ring': primaryPalette.darkPrimaryRing,
           '--color-dark-primary-contrast': primaryPalette.darkPrimaryContrast,
+          '--button-primary': primaryPalette.buttonPrimary,
+          '--button-primary-hover': primaryPalette.buttonPrimaryHover,
+          '--button-primary-active': primaryPalette.buttonPrimaryActive,
+          '--button-primary-contrast': primaryPalette.buttonPrimaryContrast,
+          '--button-primary-border': primaryPalette.buttonPrimaryBorder,
+          '--button-dark-primary': primaryPalette.darkButtonPrimary,
+          '--button-dark-primary-hover': primaryPalette.darkButtonPrimaryHover,
+          '--button-dark-primary-active': primaryPalette.darkButtonPrimaryActive,
+          '--button-dark-primary-contrast': primaryPalette.darkButtonPrimaryContrast,
+          '--button-dark-primary-border': primaryPalette.darkButtonPrimaryBorder,
         } as React.CSSProperties
       }
       suppressHydrationWarning

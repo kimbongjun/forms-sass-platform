@@ -4,40 +4,26 @@ import { useState, useRef, useEffect } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { ChevronLeft, ChevronRight, Loader2, Plus, Trash2, Check, X } from 'lucide-react'
 import { DateRangePickerInput } from '@/components/common/DatePickerInput'
-
-// ── 타입 ──────────────────────────────────────────────────────────────────────
-
-type Status = 'todo' | 'in_progress' | 'done' | 'hold'
-
-interface Task {
-  id: string
-  project_id: string
-  title: string
-  assignee: string | null
-  start_date: string | null   // YYYY-MM-DD
-  due_date: string | null     // YYYY-MM-DD (= end date)
-  status: Status
-  progress: number            // 0-100
-  order_index: number
-}
+import { ProjectTask, ProjectTaskStatus } from '@/types/project-task'
 
 interface GanttWBSProps {
   projectId: string
-  initialTasks: Task[]
+  initialTasks: ProjectTask[]
+  onTasksChange?: (tasks: ProjectTask[]) => void
 }
 
 // ── 상수 ──────────────────────────────────────────────────────────────────────
 
 const MONTHS = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월']
 
-const STATUS_OPTIONS: { value: Status; label: string; bar: string; badge: string }[] = [
-  { value: 'todo',        label: '예정',    bar: 'bg-gray-300',    badge: 'bg-gray-100 text-gray-600' },
-  { value: 'in_progress', label: '진행 중', bar: 'bg-blue-400',    badge: 'bg-blue-100 text-blue-700' },
-  { value: 'done',        label: '완료',    bar: 'bg-emerald-400', badge: 'bg-emerald-100 text-emerald-700' },
-  { value: 'hold',        label: '보류',    bar: 'bg-amber-300',   badge: 'bg-amber-100 text-amber-700' },
+const STATUS_OPTIONS: { value: ProjectTaskStatus; label: string; bar: string; badge: string }[] = [
+  { value: 'todo',        label: '예정',    bar: 'bg-slate-500',   badge: 'theme-status-badge-todo' },
+  { value: 'in_progress', label: '진행 중', bar: 'bg-blue-600',    badge: 'theme-status-badge-progress' },
+  { value: 'done',        label: '완료',    bar: 'bg-emerald-600', badge: 'theme-status-badge-done' },
+  { value: 'hold',        label: '보류',    bar: 'bg-amber-600',   badge: 'theme-status-badge-hold' },
 ]
 
-const statusMeta = Object.fromEntries(STATUS_OPTIONS.map((s) => [s.value, s])) as Record<Status, typeof STATUS_OPTIONS[number]>
+const statusMeta = Object.fromEntries(STATUS_OPTIONS.map((s) => [s.value, s])) as Record<ProjectTaskStatus, typeof STATUS_OPTIONS[number]>
 
 // ── 날짜 헬퍼 ─────────────────────────────────────────────────────────────────
 
@@ -64,7 +50,7 @@ interface EditingTask {
   assignee: string
   start_date: string
   due_date: string
-  status: Status
+  status: ProjectTaskStatus
   progress: string
 }
 
@@ -72,17 +58,25 @@ function emptyEditing(): EditingTask {
   return { id: null, title: '', assignee: '', start_date: '', due_date: '', status: 'todo', progress: '0' }
 }
 
-const inputCls = 'rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-900 focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900'
+const inputCls = 'theme-input rounded-lg px-2 py-1.5 text-xs focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900'
 
 // ── GanttWBS 컴포넌트 ─────────────────────────────────────────────────────────
 
-export default function GanttWBS({ projectId, initialTasks }: GanttWBSProps) {
-  const [tasks, setTasks] = useState<Task[]>(initialTasks)
+export default function GanttWBS({ projectId, initialTasks, onTasksChange }: GanttWBSProps) {
+  const [tasks, setTasks] = useState<ProjectTask[]>(initialTasks)
   const [year, setYear] = useState(new Date().getFullYear())
   const [editing, setEditing] = useState<EditingTask | null>(null)
   const [saving, setSaving] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setTasks(initialTasks)
+  }, [initialTasks])
+
+  useEffect(() => {
+    if (onTasksChange) onTasksChange(tasks)
+  }, [tasks, onTasksChange])
 
   const today = new Date()
   const todayMonth = today.getMonth()
@@ -102,7 +96,7 @@ export default function GanttWBS({ projectId, initialTasks }: GanttWBSProps) {
 
   // ── Gantt 바 계산 ──────────────────────────────────────────────────────────
 
-  function getBar(task: Task): { start: number; end: number } | null {
+  function getBar(task: ProjectTask): { start: number; end: number } | null {
     if (!task.start_date && !task.due_date) return null
     const s = task.start_date ? dateToCell(task.start_date) : dateToCell(task.due_date!)
     const e = task.due_date ? dateToCell(task.due_date) : dateToCell(task.start_date!)
@@ -177,7 +171,7 @@ export default function GanttWBS({ projectId, initialTasks }: GanttWBSProps) {
     setDeletingId(null)
   }
 
-  function startEdit(task: Task) {
+  function startEdit(task: ProjectTask) {
     setEditing({
       id: task.id,
       title: task.title,
@@ -200,19 +194,19 @@ export default function GanttWBS({ projectId, initialTasks }: GanttWBSProps) {
     <div className="space-y-3">
       {/* 연도 네비 + 추가 버튼 */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 shadow-sm">
-          <button type="button" onClick={() => setYear((y) => y - 1)} className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 transition-colors">
+        <div className="theme-panel flex items-center gap-2 rounded-xl border px-3 py-2 shadow-sm">
+          <button type="button" onClick={() => setYear((y) => y - 1)} className="theme-btn-icon rounded-lg p-1">
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <span className="min-w-[60px] text-center text-sm font-semibold text-gray-900">{year}년</span>
-          <button type="button" onClick={() => setYear((y) => y + 1)} className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 transition-colors">
+          <span className="theme-title min-w-[60px] text-center text-sm font-semibold">{year}년</span>
+          <button type="button" onClick={() => setYear((y) => y + 1)} className="theme-btn-icon rounded-lg p-1">
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>
         <button
           type="button"
           onClick={startNew}
-          className="flex items-center gap-2 rounded-xl bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800"
+          className="theme-btn-primary flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium"
         >
           <Plus className="h-4 w-4" />
           태스크 추가
@@ -220,7 +214,7 @@ export default function GanttWBS({ projectId, initialTasks }: GanttWBSProps) {
       </div>
 
       {/* 테이블 래퍼 */}
-      <div className="overflow-hidden rounded-[24px] border border-gray-200 bg-white shadow-sm">
+      <div className="theme-panel overflow-hidden rounded-[24px] border shadow-sm">
         <div ref={scrollRef} className="overflow-x-auto">
           <div style={{ minWidth: LEFT_W + TOTAL_COLS * CELL_W }}>
 
@@ -263,7 +257,7 @@ export default function GanttWBS({ projectId, initialTasks }: GanttWBSProps) {
                       style={{ width: CELL_W }}
                       className={[
                         'shrink-0 py-2 text-center text-[10px] font-medium border-r border-gray-100 last:border-r-0',
-                        isToday ? 'bg-blue-50 text-blue-600 font-bold' : 'text-gray-300',
+                        isToday ? 'bg-blue-50 text-blue-600 font-bold' : 'text-gray-400',
                         wi === 3 ? 'border-r-gray-200' : '',
                       ].join(' ')}
                     >
@@ -290,7 +284,7 @@ export default function GanttWBS({ projectId, initialTasks }: GanttWBSProps) {
             {tasks.length === 0 && !editing && (
               <div className="flex" style={{ minHeight: 120 }}>
                 <div className="sticky left-0 z-10 flex shrink-0 items-center justify-center bg-white" style={{ width: LEFT_W }}>
-                  <p className="text-sm text-gray-400">태스크를 추가해 보세요.</p>
+                  <p className="theme-muted text-sm">태스크를 추가해 보세요.</p>
                 </div>
                 <div className="flex-1" />
               </div>
@@ -336,7 +330,7 @@ export default function GanttWBS({ projectId, initialTasks }: GanttWBSProps) {
                         <button
                           type="button"
                           onClick={() => startEdit(task)}
-                          className="truncate px-2 py-3 text-left text-xs text-gray-400"
+                          className="theme-muted truncate px-2 py-3 text-left text-xs"
                         >
                           {task.assignee ?? '—'}
                         </button>
@@ -350,7 +344,7 @@ export default function GanttWBS({ projectId, initialTasks }: GanttWBSProps) {
                             <div className="h-1.5 w-10 overflow-hidden rounded-full bg-gray-100">
                               <div className={`h-full ${meta.bar}`} style={{ width: `${task.progress ?? 0}%` }} />
                             </div>
-                            <span className="text-[10px] text-gray-400">{task.progress ?? 0}%</span>
+                            <span className="theme-muted text-[10px]">{task.progress ?? 0}%</span>
                           </div>
                         </button>
                         {/* 상태 + 삭제 */}
@@ -385,8 +379,8 @@ export default function GanttWBS({ projectId, initialTasks }: GanttWBSProps) {
                         />
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] text-gray-400">상태</span>
-                        <select value={editing.status} onChange={(e) => setEditing({ ...editing, status: e.target.value as Status })} className={`${inputCls} w-24`}>
+                        <span className="theme-muted text-[10px]">상태</span>
+                        <select value={editing.status} onChange={(e) => setEditing({ ...editing, status: e.target.value as ProjectTaskStatus })} className={`${inputCls} w-24`}>
                           {STATUS_OPTIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
                         </select>
                       </div>
@@ -443,12 +437,12 @@ export default function GanttWBS({ projectId, initialTasks }: GanttWBSProps) {
         {STATUS_OPTIONS.map((s) => (
           <div key={s.value} className="flex items-center gap-1.5">
             <span className={`h-2.5 w-5 rounded-full ${s.bar}`} />
-            <span className="text-xs text-gray-400">{s.label}</span>
+            <span className="theme-muted text-xs">{s.label}</span>
           </div>
         ))}
         <div className="flex items-center gap-1.5">
           <span className="h-2.5 w-5 rounded-full bg-black/20 border border-gray-200" />
-          <span className="text-xs text-gray-400">진행률</span>
+          <span className="theme-muted text-xs">진행률</span>
         </div>
       </div>
     </div>
@@ -492,10 +486,10 @@ function InlineEditLeft({ editing, onChange, onSave, onCancel, saving }: InlineE
         className={`${inputCls} w-full`}
       />
       <div className="flex items-center justify-center gap-1">
-        <button type="button" onClick={onSave} disabled={saving} className="rounded-lg bg-gray-900 p-1.5 text-white hover:bg-gray-800 disabled:opacity-50">
+        <button type="button" onClick={onSave} disabled={saving} className="theme-btn-primary rounded-lg p-1.5 disabled:opacity-50">
           {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
         </button>
-        <button type="button" onClick={onCancel} className="rounded-lg border border-gray-200 p-1.5 text-gray-400 hover:bg-gray-100">
+        <button type="button" onClick={onCancel} className="theme-btn-secondary rounded-lg p-1.5">
           <X className="h-3 w-3" />
         </button>
       </div>
@@ -531,10 +525,10 @@ function EditRow({ editing, onChange, onSave, onCancel, saving, leftWidth }: New
           <input value={editing.assignee} onChange={(e) => set('assignee', e.target.value)} placeholder="담당자" className={`${inputCls} w-full`} />
           <input type="number" value={editing.progress} onChange={(e) => set('progress', e.target.value)} min={0} max={100} placeholder="0" className={`${inputCls} w-full`} />
           <div className="flex items-center justify-center gap-1">
-            <button type="button" onClick={onSave} disabled={saving} className="rounded-lg bg-gray-900 p-1.5 text-white hover:bg-gray-800 disabled:opacity-50">
+            <button type="button" onClick={onSave} disabled={saving} className="theme-btn-primary rounded-lg p-1.5 disabled:opacity-50">
               {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
             </button>
-            <button type="button" onClick={onCancel} className="rounded-lg border border-gray-200 p-1.5 text-gray-400 hover:bg-gray-100">
+            <button type="button" onClick={onCancel} className="theme-btn-secondary rounded-lg p-1.5">
               <X className="h-3 w-3" />
             </button>
           </div>
@@ -550,8 +544,8 @@ function EditRow({ editing, onChange, onSave, onCancel, saving, leftWidth }: New
           />
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-gray-400">상태</span>
-          <select value={editing.status} onChange={(e) => set('status', e.target.value as Status)} className={`${inputCls} w-24`}>
+          <span className="theme-muted text-[10px]">상태</span>
+          <select value={editing.status} onChange={(e) => set('status', e.target.value as ProjectTaskStatus)} className={`${inputCls} w-24`}>
             {STATUS_OPTIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
         </div>

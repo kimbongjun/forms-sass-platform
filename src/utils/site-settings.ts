@@ -119,12 +119,48 @@ function getReadableTextColor(hex: string) {
   return getLuminance(hex) > 0.42 ? '#0f172a' : '#f8fafc'
 }
 
+function getContrastRatio(background: string, foreground: string) {
+  const bg = getLuminance(background)
+  const fg = getLuminance(foreground)
+  const lighter = Math.max(bg, fg)
+  const darker = Math.min(bg, fg)
+  return (lighter + 0.05) / (darker + 0.05)
+}
+
+function darken(hex: string, ratio: number) {
+  return mixWith(hex, { r: 0, g: 0, b: 0 }, ratio)
+}
+
+function lighten(hex: string, ratio: number) {
+  return mixWith(hex, { r: 255, g: 255, b: 255 }, ratio)
+}
+
+function ensureButtonContrast(background: string, preferredText?: string, minimumContrast = 4.5) {
+  let candidate = normalizeHex(background)
+  let text = preferredText ?? getReadableTextColor(candidate)
+  let contrast = getContrastRatio(candidate, text)
+  let attempts = 0
+
+  while (contrast < minimumContrast && attempts < 12) {
+    candidate = text === '#f8fafc' ? darken(candidate, 0.1) : lighten(candidate, 0.1)
+    text = getReadableTextColor(candidate)
+    contrast = getContrastRatio(candidate, text)
+    attempts += 1
+  }
+
+  return {
+    background: candidate,
+    text,
+    contrast,
+  }
+}
+
 function ensureMinimumLuminance(hex: string, minimum: number) {
   let candidate = normalizeHex(hex)
   let attempts = 0
 
   while (getLuminance(candidate) < minimum && attempts < 10) {
-    candidate = mixWith(candidate, { r: 255, g: 255, b: 255 }, 0.14)
+    candidate = lighten(candidate, 0.14)
     attempts += 1
   }
 
@@ -134,6 +170,12 @@ function ensureMinimumLuminance(hex: string, minimum: number) {
 export function getResolvedPrimaryPalette(settings: GlobalSiteSettings) {
   const primary = getResolvedPrimaryColor(settings)
   const darkPrimary = ensureMinimumLuminance(primary, 0.42)
+  const buttonPrimary = ensureButtonContrast(primary)
+  const buttonPrimaryHover = ensureButtonContrast(darken(buttonPrimary.background, 0.1), buttonPrimary.text)
+  const buttonPrimaryActive = ensureButtonContrast(darken(buttonPrimary.background, 0.18), buttonPrimary.text)
+  const darkButtonPrimary = ensureButtonContrast(darkPrimary)
+  const darkButtonPrimaryHover = ensureButtonContrast(lighten(darkButtonPrimary.background, 0.06), darkButtonPrimary.text)
+  const darkButtonPrimaryActive = ensureButtonContrast(darken(darkButtonPrimary.background, 0.12), darkButtonPrimary.text)
 
   return {
     primary,
@@ -150,6 +192,16 @@ export function getResolvedPrimaryPalette(settings: GlobalSiteSettings) {
     darkPrimarySoftBorder: mixWith(darkPrimary, { r: 15, g: 23, b: 42 }, 0.6),
     darkPrimaryRing: mixWith(darkPrimary, { r: 255, g: 255, b: 255 }, 0.32),
     darkPrimaryContrast: getReadableTextColor(darkPrimary),
+    buttonPrimary: buttonPrimary.background,
+    buttonPrimaryHover: buttonPrimaryHover.background,
+    buttonPrimaryActive: buttonPrimaryActive.background,
+    buttonPrimaryContrast: buttonPrimary.text,
+    buttonPrimaryBorder: darken(buttonPrimary.background, 0.18),
+    darkButtonPrimary: darkButtonPrimary.background,
+    darkButtonPrimaryHover: darkButtonPrimaryHover.background,
+    darkButtonPrimaryActive: darkButtonPrimaryActive.background,
+    darkButtonPrimaryContrast: darkButtonPrimary.text,
+    darkButtonPrimaryBorder: darken(darkButtonPrimary.background, 0.18),
   }
 }
 

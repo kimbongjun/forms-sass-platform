@@ -58,6 +58,10 @@ const PLATFORM_COLORS: Record<Platform, string> = {
   other: 'bg-gray-100 text-gray-600',
 }
 
+function resolvePlatform(value: string): Platform {
+  return value in PLATFORM_LABELS ? (value as Platform) : 'other'
+}
+
 function formatNum(n: number) {
   if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`
   if (n >= 1000) return `${(n / 1000).toFixed(1)}K`
@@ -248,14 +252,15 @@ export default function InsightsPage() {
                 {Object.entries(byPlatform)
                   .sort((a, b) => b[1].views - a[1].views)
                   .map(([platform, stats]) => {
+                    const resolvedPlatform = resolvePlatform(platform)
                     const maxViews = Math.max(...Object.values(byPlatform).map((s) => s.views), 1)
                     const pct = Math.round((stats.views / maxViews) * 100)
                     return (
                       <div key={platform}>
                         <div className="mb-1.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${PLATFORM_COLORS[platform as Platform]}`}>
-                              {PLATFORM_LABELS[platform as Platform]}
+                            <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${PLATFORM_COLORS[resolvedPlatform]}`}>
+                              {PLATFORM_LABELS[resolvedPlatform]}
                             </span>
                             <span className="theme-subtle text-xs">{stats.count}건</span>
                           </div>

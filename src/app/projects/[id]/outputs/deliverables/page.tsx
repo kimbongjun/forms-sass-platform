@@ -70,6 +70,10 @@ const PLATFORM_COLORS: Record<Platform, string> = {
   other: 'bg-gray-100 text-gray-600',
 }
 
+function resolvePlatform(value: string): Platform {
+  return value in PLATFORM_LABELS ? (value as Platform) : 'other'
+}
+
 const CACHE_TTL_MS = 60 * 60 * 1000
 
 function formatNum(n: number) {
@@ -545,11 +549,13 @@ export default function DeliverablesPage() {
         </div>
       )}
 
-      {!loading && Object.entries(grouped).map(([platform, list]) => (
+      {!loading && Object.entries(grouped).map(([platform, list]) => {
+        const resolvedPlatform = resolvePlatform(platform)
+        return (
         <section key={platform} className="theme-panel rounded-2xl border shadow-sm">
           <div className="theme-divider flex items-center gap-3 border-b px-5 py-4">
-            <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${PLATFORM_COLORS[platform as Platform]}`}>
-              {PLATFORM_LABELS[platform as Platform]}
+            <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${PLATFORM_COLORS[resolvedPlatform]}`}>
+              {PLATFORM_LABELS[resolvedPlatform]}
             </span>
             <span className="theme-subtle text-sm">{list.length}건</span>
           </div>
@@ -621,7 +627,8 @@ export default function DeliverablesPage() {
             </table>
           </div>
         </section>
-      ))}
+        )
+      })}
 
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
