@@ -50,6 +50,13 @@ function stripHtml(value: string) {
   return value.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').trim()
 }
 
+function normalizeDate(value: string | null) {
+  if (!value) return null
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return null
+  return parsed.toISOString().slice(0, 10)
+}
+
 function getTimeoutSignal() {
   if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
     return AbortSignal.timeout(8000)
@@ -110,6 +117,53 @@ async function searchDuckDuckGo(query: string, limit: number) {
   return []
 }
 
+async function searchNaverNews(query: string, limit: number) {
+  const clientId = process.env.NAVER_SEARCH_CLIENT_ID
+  const clientSecret = process.env.NAVER_SEARCH_CLIENT_SECRET
+
+  if (!clientId || !clientSecret) return []
+
+  try {
+    const url = new URL('https://openapi.naver.com/v1/search/news.json')
+    url.searchParams.set('query', query)
+    url.searchParams.set('display', String(Math.min(limit, 100)))
+    url.searchParams.set('start', '1')
+    url.searchParams.set('sort', 'date')
+
+    const res = await fetch(url.toString(), {
+      headers: {
+        'X-Naver-Client-Id': clientId,
+        'X-Naver-Client-Secret': clientSecret,
+        Accept: 'application/json',
+      },
+      cache: 'no-store',
+      signal: getTimeoutSignal(),
+    })
+
+    if (!res.ok) return []
+
+    const data = await res.json() as {
+      items?: Array<{
+        title?: string
+        originallink?: string
+        link?: string
+        description?: string
+        pubDate?: string
+      }>
+    }
+
+    return (data.items ?? []).map((item) => ({
+      url: item.originallink?.trim() || item.link?.trim() || '',
+      title: stripHtml(item.title ?? ''),
+      matched_query: query,
+      description: stripHtml(item.description ?? ''),
+      published_at: normalizeDate(item.pubDate ?? null),
+    })).filter((item) => item.url)
+  } catch {
+    return []
+  }
+}
+
 function isAllowedNewsUrl(url: string) {
   try {
     const hostname = new URL(url).hostname.toLowerCase()
@@ -154,8 +208,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   ]
   const searchedRows = await Promise.all(
     queryVariants.map(async (query) => {
-      const rows = await searchDuckDuckGo(query, 8)
-      return rows.map((row) => ({ ...row, matched_query: query }))
+      const naverRows = await searchNaverNews(query, 10)
+      if (naverRows.length > 0) {
+        return naverRows.map((row) => ({
+          url: row.url,
+          title: row.title,
+          matched_query: row.matched_query,
+          description: row.description,
+          published_at: row.published_at,
+        }))
+      }
+
+      const ddgRows = await searchDuckDuckGo(query, 8)
+      return ddgRows.map((row) => ({
+        url: row.url,
+        title: row.title,
+        matched_query: query,
+        description: null,
+        published_at: null,
+      }))
     })
   )
 
@@ -188,6 +259,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           ...parsed,
           title: parsed.title || item.title || `${keyword} 관련 기사`,
           source: parsed.source || domain,
+          description: parsed.description || item.description || null,
+          published_at: parsed.published_at || item.published_at || null,
           domain,
           is_registered: existingUrls.has(item.url),
           matched_query: item.matched_query,
@@ -203,8 +276,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           title: item.title || `${keyword} 관련 기사`,
           url: item.url,
           source: domain,
-          published_at: null,
-          description: null,
+          published_at: item.published_at,
+          description: item.description,
           thumbnail_url: null,
           domain,
           is_registered: existingUrls.has(item.url),
@@ -230,7 +303,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   })
 
   if (parsedResults.length === 0) {
-    notices.push('검색 결과가 없거나 검색 엔진 응답이 제한되었습니다. 서버 네트워크 또는 외부 검색엔진 차단 여부를 확인해주세요.')
+    notices.push('검색 결과가 없거나 검색 엔진 응답이 제한되었습니다. Vercel에서는 NAVER_SEARCH_CLIENT_ID / NAVER_SEARCH_CLIENT_SECRET 설정을 권장합니다.')
   } else if (parsedResults.some((item) => item.is_registered)) {
     notices.push('이미 등록된 기사도 함께 표시됩니다. 중복 등록이 필요 없다면 신규 결과만 선택하세요.')
   }
