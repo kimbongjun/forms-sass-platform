@@ -146,7 +146,7 @@ export default function InsightsPage() {
   ]
 
   const loadingSkeleton = (
-    <div className="space-y-6">
+      <div className="space-y-6">
       <HeaderSkeleton />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, index) => (
@@ -171,14 +171,14 @@ export default function InsightsPage() {
   return (
     <div className="space-y-6">
       {/* 헤더 */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-lg font-semibold text-gray-900">운영 결과 보고서</h2>
           <p className="mt-0.5 text-sm text-gray-400">
             산출물 전체의 SNS 합산 지표 및 미디어 노출 현황을 한눈에 확인합니다.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
           {lastSynced && (
             <p className="text-xs text-gray-400">마지막 갱신: {formatSyncTime(lastSynced)}</p>
           )}
@@ -220,7 +220,7 @@ export default function InsightsPage() {
           {/* 세부 인게이지먼트 분해 */}
           <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
             <h3 className="mb-4 text-sm font-semibold text-gray-900">인게이지먼트 상세</h3>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid gap-4 sm:grid-cols-3">
               {[
                 { label: '좋아요', value: totalLikes, icon: Heart, color: 'text-pink-500' },
                 { label: '댓글', value: totalComments, icon: MessageCircle, color: 'text-blue-500' },
@@ -252,14 +252,14 @@ export default function InsightsPage() {
                     const pct = Math.round((stats.views / maxViews) * 100)
                     return (
                       <div key={platform}>
-                        <div className="mb-1.5 flex items-center justify-between">
-                          <div className="flex items-center gap-2">
+                        <div className="mb-1.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex flex-wrap items-center gap-2">
                             <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${PLATFORM_COLORS[platform as Platform]}`}>
                               {PLATFORM_LABELS[platform as Platform]}
                             </span>
                             <span className="text-xs text-gray-400">{stats.count}건</span>
                           </div>
-                          <div className="flex items-center gap-4 text-xs text-gray-500">
+                          <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 sm:justify-end">
                             <span className="flex items-center gap-1">
                               <Eye className="h-3.5 w-3.5 text-gray-400" />
                               {formatNum(stats.views)}

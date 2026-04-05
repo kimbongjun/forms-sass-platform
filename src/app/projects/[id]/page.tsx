@@ -54,7 +54,7 @@ export default async function ProjectOverviewPage({ params }: ProjectOverviewPag
 
   return (
     <div className="space-y-5">
-      <section className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm">
+      <section className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-2">
             {project.category && (
@@ -90,10 +90,10 @@ export default async function ProjectOverviewPage({ params }: ProjectOverviewPag
           </div>
 
           {/* 퀵 액션 */}
-          <div className="flex flex-wrap gap-2 shrink-0">
+          <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:shrink-0">
             <Link
               href={`/projects/${id}/edit`}
-              className="flex items-center gap-2 rounded-xl bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800 sm:w-auto"
             >
               <Pencil className="h-4 w-4" />
               프로젝트 편집
@@ -103,7 +103,7 @@ export default async function ProjectOverviewPage({ params }: ProjectOverviewPag
       </section>
 
       <section className="grid gap-5 lg:grid-cols-2">
-        <article className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm">
+        <article className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
           <h2 className="text-sm font-semibold text-gray-900">프로젝트 요약</h2>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <div className="rounded-2xl bg-gray-50 p-4">
@@ -133,7 +133,7 @@ export default async function ProjectOverviewPage({ params }: ProjectOverviewPag
           </div>
         </article>
 
-        <article className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm">
+        <article className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
           <div className="mb-4 flex items-center gap-2">
             <MapPin className="h-4 w-4 text-gray-400" />
             <h2 className="text-sm font-semibold text-gray-900">행사장</h2>
@@ -165,7 +165,7 @@ export default async function ProjectOverviewPage({ params }: ProjectOverviewPag
       </section>
 
       {/* 팀 구성 */}
-      <section className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm">
+      <section className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
         <div className="flex items-center gap-2">
           <Users className="h-4 w-4 text-gray-400" />
           <h2 className="text-sm font-semibold text-gray-900">팀 구성 (R&amp;R)</h2>

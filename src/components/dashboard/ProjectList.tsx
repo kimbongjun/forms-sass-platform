@@ -205,8 +205,8 @@ export default function ProjectList({ projects }: ProjectListProps) {
   return (
     <div className="space-y-4">
       {/* 검색 필터 패널 */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
+      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">검색 필터</p>
           {hasFilter && (
             <button
@@ -290,7 +290,7 @@ export default function ProjectList({ projects }: ProjectListProps) {
       </div>
 
       {/* 툴바 */}
-      <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 shadow-sm">
+      <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:py-2.5">
         <label className="flex cursor-pointer items-center gap-2.5 text-sm text-gray-600 select-none">
           <input type="checkbox" checked={allSelected} onChange={toggleAll} className="h-4 w-4 rounded accent-gray-900" />
           전체 선택
@@ -305,7 +305,7 @@ export default function ProjectList({ projects }: ProjectListProps) {
 
         {visibleSelectedCount > 0 && (
           confirmBulk ? (
-            <div className="flex items-center gap-2 text-sm">
+            <div className="flex flex-wrap items-center gap-2 text-sm">
               <span className="text-gray-500">{visibleSelectedCount}개를 삭제할까요?</span>
               <button
                 type="button"
@@ -419,7 +419,7 @@ export default function ProjectList({ projects }: ProjectListProps) {
                   </div>
 
                   {/* 하단 통계 */}
-                  <div className="mt-4 flex items-center gap-3 border-t border-gray-100 pt-3">
+                  <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-gray-100 pt-3">
                     {project.memberCount > 0 && (
                       <span className="flex items-center gap-1 text-xs text-gray-400">
                         <Users className="h-3.5 w-3.5 shrink-0" />
@@ -432,14 +432,14 @@ export default function ProjectList({ projects }: ProjectListProps) {
                         폼 {project.formCount}개
                       </span>
                     )}
-                    <span className="ml-auto text-xs text-gray-300">
+                    <span className="text-xs text-gray-300 sm:ml-auto">
                       {new Intl.DateTimeFormat('ko-KR', { year: '2-digit', month: 'numeric', day: 'numeric' }).format(new Date(project.created_at))}
                     </span>
                   </div>
                 </Link>
 
                 {/* 액션 버튼 */}
-                <div className="flex items-center gap-1.5 border-t border-gray-100 px-4 py-2.5">
+                <div className="flex flex-wrap items-center gap-1.5 border-t border-gray-100 px-4 py-2.5">
                   <button
                     type="button"
                     onClick={() => handleDuplicate(project.id)}
@@ -453,7 +453,7 @@ export default function ProjectList({ projects }: ProjectListProps) {
                     type="button"
                     onClick={() => handleDeleteOne(project.id, project.title)}
                     disabled={isDeleting || deletingIds.size > 0}
-                    className="ml-auto rounded-lg p-1.5 text-gray-300 transition-colors hover:bg-red-50 hover:text-red-500 disabled:opacity-30"
+                    className="rounded-lg p-1.5 text-gray-300 transition-colors hover:bg-red-50 hover:text-red-500 disabled:opacity-30 sm:ml-auto"
                     title="삭제"
                   >
                     {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}

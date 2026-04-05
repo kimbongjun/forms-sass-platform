@@ -35,7 +35,7 @@ export default async function ProjectLayout({ children, params }: ProjectLayoutP
           프로젝트 목록
         </Link>
 
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="truncate text-lg font-semibold text-gray-900 sm:text-xl">{project.title}</h1>
@@ -59,13 +59,13 @@ export default async function ProjectLayout({ children, params }: ProjectLayoutP
         </div>
 
         {/* 탭 네비게이션 - 별도 행으로 분리 */}
-        <div className="mt-3 -mx-1">
+        <div className="mt-3 -mx-1 overflow-x-auto">
           <TabNavigation projectId={project.id} />
         </div>
       </div>
 
       {/* 콘텐츠 */}
-      <main className="flex-1 px-4 py-5 sm:px-6 sm:py-6">
+      <main className="flex-1 px-4 py-4 sm:px-6 sm:py-6">
         <div className="mx-auto max-w-7xl">{children}</div>
       </main>
     </div>

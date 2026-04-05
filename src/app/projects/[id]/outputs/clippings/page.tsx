@@ -372,17 +372,17 @@ export default function ClippingsPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-lg font-semibold text-gray-900">보도자료 클리핑</h2>
           <p className="mt-0.5 text-sm text-gray-400">언론 기사, 외부 리뷰 등 미디어 노출 내역을 아카이빙합니다.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
           <button
             type="button"
             onClick={() => fetchData(true)}
             disabled={refreshing}
-            className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-40"
+            className="flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-40"
           >
             <RefreshCw className={['h-4 w-4', refreshing ? 'animate-spin' : ''].join(' ')} />
             새로고침
@@ -390,7 +390,7 @@ export default function ClippingsPage() {
           <button
             type="button"
             onClick={openCreate}
-            className="flex items-center gap-2 rounded-xl bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800"
+            className="flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800"
           >
             <Plus className="h-4 w-4" />
             클리핑 등록
@@ -424,51 +424,53 @@ export default function ClippingsPage() {
           {items.map((item, idx) => (
             <div
               key={item.id}
-              className="group flex items-start gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:border-gray-300 hover:shadow-md"
+              className="group flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:border-gray-300 hover:shadow-md sm:flex-row sm:items-start sm:p-5"
             >
               <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-500">
                 {idx + 1}
               </span>
 
-              {item.thumbnail_url ? (
-                <Image
-                  src={item.thumbnail_url}
-                  alt={item.title}
-                  width={80}
-                  height={56}
-                  unoptimized
-                  className="h-14 w-20 shrink-0 rounded-xl object-cover"
-                />
-              ) : (
-                <div className="flex h-14 w-20 shrink-0 items-center justify-center rounded-xl bg-gray-100">
-                  <Newspaper className="h-5 w-5 text-gray-300" />
-                </div>
-              )}
-
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  {item.source && (
-                    <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-600">
-                      {item.source}
-                    </span>
-                  )}
-                  <span className="text-xs text-gray-400">{formatDate(item.published_at)}</span>
-                </div>
-                <a
-                  href={item.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-1 flex items-start gap-1.5 font-semibold text-gray-900 hover:text-gray-600"
-                >
-                  {item.title}
-                  <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-400" />
-                </a>
-                {item.description && (
-                  <p className="mt-1 line-clamp-2 text-sm text-gray-400">{item.description}</p>
+              <div className="flex min-w-0 flex-1 gap-4">
+                {item.thumbnail_url ? (
+                  <Image
+                    src={item.thumbnail_url}
+                    alt={item.title}
+                    width={80}
+                    height={56}
+                    unoptimized
+                    className="h-14 w-20 shrink-0 rounded-xl object-cover"
+                  />
+                ) : (
+                  <div className="flex h-14 w-20 shrink-0 items-center justify-center rounded-xl bg-gray-100">
+                    <Newspaper className="h-5 w-5 text-gray-300" />
+                  </div>
                 )}
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {item.source && (
+                      <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-600">
+                        {item.source}
+                      </span>
+                    )}
+                    <span className="text-xs text-gray-400">{formatDate(item.published_at)}</span>
+                  </div>
+                  <a
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-1 flex items-start gap-1.5 font-semibold text-gray-900 hover:text-gray-600"
+                  >
+                    {item.title}
+                    <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-400" />
+                  </a>
+                  {item.description && (
+                    <p className="mt-1 line-clamp-2 text-sm text-gray-400">{item.description}</p>
+                  )}
+                </div>
               </div>
 
-              <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+              <div className="flex shrink-0 items-center gap-1 self-end opacity-100 transition-opacity sm:self-auto sm:opacity-0 sm:group-hover:opacity-100">
                 <button
                   type="button"
                   onClick={() => openEdit(item)}

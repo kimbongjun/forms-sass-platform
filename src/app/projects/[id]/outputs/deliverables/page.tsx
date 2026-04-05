@@ -495,19 +495,19 @@ export default function DeliverablesPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-lg font-semibold text-gray-900">산출물 관리</h2>
           <p className="mt-0.5 text-sm text-gray-400">
             키워드 조회, URL 조회, 수동 등록으로 SNS 산출물을 관리합니다.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
           <button
             type="button"
             onClick={() => fetchData(true)}
             disabled={refreshing}
-            className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-40"
+            className="flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-40"
           >
             <RefreshCw className={['h-4 w-4', refreshing ? 'animate-spin' : ''].join(' ')} />
             새로고침
@@ -515,7 +515,7 @@ export default function DeliverablesPage() {
           <button
             type="button"
             onClick={openCreate}
-            className="flex items-center gap-2 rounded-xl bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800"
+            className="flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800"
           >
             <Plus className="h-4 w-4" />
             산출물 등록
