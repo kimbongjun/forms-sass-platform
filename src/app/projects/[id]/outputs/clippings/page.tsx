@@ -9,6 +9,7 @@ import {
   Edit2,
   ExternalLink,
   Filter,
+  Info,
   Loader2,
   Newspaper,
   PencilLine,
@@ -86,6 +87,8 @@ export default function ClippingsPage() {
   const [sortMode, setSortMode] = useState<'recommended' | 'latest'>('recommended')
   const [bulkSaving, setBulkSaving] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [parsingUrl, setParsingUrl] = useState(false)
+  const [parseNotice, setParseNotice] = useState<{ type: 'info' | 'warn'; message: string } | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [, startTransition] = useTransition()
 
@@ -116,6 +119,7 @@ export default function ClippingsPage() {
 
   function resetCreateState() {
     setForm(EMPTY_FORM)
+    setParseNotice(null)
     setKeywordInput('')
     setKeywordResults([])
     setSelectedKeywordKeys(new Set())
@@ -155,12 +159,56 @@ export default function ClippingsPage() {
     setDateFromFilter('')
     setDateToFilter('')
     setSortMode('recommended')
+    setParseNotice(null)
     setModalStep('manual_form')
     setModalOpen(true)
   }
 
   function closeModal() {
     setModalOpen(false)
+  }
+
+  async function handleParseUrl() {
+    const url = form.url.trim()
+    if (!url) {
+      setParseNotice({ type: 'warn', message: '먼저 URL을 입력해주세요.' })
+      return
+    }
+
+    setParsingUrl(true)
+    setParseNotice(null)
+
+    try {
+      const res = await fetch(`/api/projects/${projectId}/clippings/parse`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      })
+      const data: ParsedClipping | { error?: string } = await res.json()
+
+      if (!res.ok) {
+        throw new Error('error' in data ? data.error ?? '자동 불러오기에 실패했습니다.' : '자동 불러오기에 실패했습니다.')
+      }
+
+      const parsed = data as ParsedClipping
+      setForm((current) => ({
+        ...current,
+        title: parsed.title || current.title,
+        source: parsed.source || current.source,
+        published_at: parsed.published_at || current.published_at,
+        description: parsed.description || current.description,
+        thumbnail_url: parsed.thumbnail_url || current.thumbnail_url,
+      }))
+
+      setParseNotice({
+        type: parsed.notice ? 'warn' : 'info',
+        message: parsed.notice ?? 'URL에서 기사 정보를 자동으로 불러왔습니다. 필요한 내용만 보정 후 저장하세요.',
+      })
+    } catch (e) {
+      setParseNotice({ type: 'warn', message: e instanceof Error ? e.message : '자동 불러오기에 실패했습니다.' })
+    } finally {
+      setParsingUrl(false)
+    }
   }
 
   function toggleKeywordSelection(key: string) {
@@ -763,6 +811,43 @@ export default function ClippingsPage() {
               <>
                 <div className="max-h-[70vh] overflow-y-auto space-y-4 px-6 py-5">
                   <div>
+                    <label className="mb-1 block text-xs font-semibold text-gray-500">URL *</label>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <input
+                        type="url"
+                        value={form.url}
+                        onChange={(e) => {
+                          setForm((f) => ({ ...f, url: e.target.value }))
+                          if (parseNotice) setParseNotice(null)
+                        }}
+                        placeholder="https://..."
+                        className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-gray-400 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleParseUrl}
+                        disabled={!form.url.trim() || parsingUrl}
+                        className="flex shrink-0 items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-40"
+                      >
+                        {parsingUrl ? <Loader2 className="h-4 w-4 animate-spin" /> : <Info className="h-4 w-4" />}
+                        자동 불러오기
+                      </button>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-400">기사 URL을 넣고 자동 불러오기를 누르면 제목, 언론사, 게재일, 요약을 가능한 범위에서 채웁니다.</p>
+                  </div>
+                  {parseNotice && (
+                    <div className={`flex items-start gap-2 rounded-xl px-4 py-3 text-sm ${
+                      parseNotice.type === 'warn'
+                        ? 'bg-amber-50 text-amber-700'
+                        : 'bg-blue-50 text-blue-700'
+                    }`}>
+                      {parseNotice.type === 'warn'
+                        ? <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                        : <Info className="mt-0.5 h-4 w-4 shrink-0" />}
+                      <span>{parseNotice.message}</span>
+                    </div>
+                  )}
+                  <div>
                     <label className="mb-1 block text-xs font-semibold text-gray-500">제목 *</label>
                     <input
                       type="text"
@@ -772,17 +857,7 @@ export default function ClippingsPage() {
                       className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-gray-400 focus:outline-none"
                     />
                   </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-semibold text-gray-500">URL *</label>
-                    <input
-                      type="url"
-                      value={form.url}
-                      onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
-                      placeholder="https://..."
-                      className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-gray-400 focus:outline-none"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
                     <div>
                       <label className="mb-1 block text-xs font-semibold text-gray-500">언론사 / 출처</label>
                       <input
