@@ -24,7 +24,11 @@ import {
   X,
 } from 'lucide-react'
 import { HeaderSkeleton, SectionSkeleton, SkeletonBlock } from '@/components/common/LoadingSkeleton'
-import type { ParsedDeliverable } from '@/features/deliverables/types'
+import type {
+  DeliverableSearchPlatform,
+  DeliverableSearchResult,
+  ParsedDeliverable,
+} from '@/features/deliverables/types'
 
 type Platform = 'instagram' | 'youtube' | 'tiktok' | 'facebook' | 'twitter' | 'other'
 
@@ -45,13 +49,6 @@ interface Deliverable {
   created_at: string
 }
 
-interface KeywordSearchResult extends ParsedDeliverable {
-  key: string
-  is_registered: boolean
-  platform_priority: number
-  recommended_score: number
-}
-
 const PLATFORM_LABELS: Record<Platform, string> = {
   instagram: 'Instagram',
   youtube: 'YouTube',
@@ -61,7 +58,7 @@ const PLATFORM_LABELS: Record<Platform, string> = {
   other: '기타',
 }
 
-const SEARCHABLE_PLATFORMS: Platform[] = ['youtube', 'instagram', 'facebook', 'twitter', 'tiktok']
+const SEARCHABLE_PLATFORMS: DeliverableSearchPlatform[] = ['youtube', 'instagram']
 
 const PLATFORM_COLORS: Record<Platform, string> = {
   instagram: 'bg-pink-100 text-pink-700',
@@ -88,6 +85,24 @@ function formatDate(d: string | null) {
 function formatSyncTime(d: string | null) {
   if (!d) return '미동기화'
   return new Intl.DateTimeFormat('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(d))
+}
+
+function getMediaTypeLabel(item: DeliverableSearchResult) {
+  if (item.platform !== 'instagram') return null
+
+  switch ((item.media_type ?? '').toUpperCase()) {
+    case 'REEL':
+      return 'Reel'
+    case 'VIDEO':
+      return 'Video'
+    case 'CAROUSEL_ALBUM':
+      return 'Carousel'
+    case 'IMAGE':
+    case 'POST':
+      return 'Post'
+    default:
+      return 'Instagram'
+  }
 }
 
 type ModalStep = 'select_method' | 'keyword_search' | 'url_input' | 'parsing' | 'form' | 'manual_form'
@@ -146,12 +161,12 @@ export default function DeliverablesPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [urlInput, setUrlInput] = useState('')
   const [keywordInput, setKeywordInput] = useState('')
-  const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>(['youtube', 'instagram', 'facebook', 'twitter'])
-  const [keywordResults, setKeywordResults] = useState<KeywordSearchResult[]>([])
+  const [selectedPlatforms, setSelectedPlatforms] = useState<DeliverableSearchPlatform[]>(['youtube', 'instagram'])
+  const [keywordResults, setKeywordResults] = useState<DeliverableSearchResult[]>([])
   const [selectedKeywordKeys, setSelectedKeywordKeys] = useState<Set<string>>(new Set())
   const [keywordNotices, setKeywordNotices] = useState<string[]>([])
   const [keywordLoading, setKeywordLoading] = useState(false)
-  const [platformFilter, setPlatformFilter] = useState<'all' | Platform>('all')
+  const [platformFilter, setPlatformFilter] = useState<'all' | DeliverableSearchPlatform>('all')
   const [showRegistered, setShowRegistered] = useState(true)
   const [sortMode, setSortMode] = useState<'recommended' | 'latest'>('recommended')
   const [bulkSaving, setBulkSaving] = useState(false)
@@ -237,7 +252,7 @@ export default function DeliverablesPage() {
     setModalStep('manual_form')
   }
 
-  function togglePlatform(platform: Platform) {
+  function togglePlatform(platform: DeliverableSearchPlatform) {
     setSelectedPlatforms((prev) => (
       prev.includes(platform) ? prev.filter((item) => item !== platform) : [...prev, platform]
     ))
@@ -423,14 +438,15 @@ export default function DeliverablesPage() {
     if (!showRegistered && item.is_registered) return false
     return true
   }).sort((a, b) => {
+    if (a.is_registered !== b.is_registered) return Number(a.is_registered) - Number(b.is_registered)
     if (sortMode === 'latest') {
       if (a.published_at && b.published_at) return b.published_at.localeCompare(a.published_at)
       if (a.published_at) return -1
       if (b.published_at) return 1
     }
-    if (a.is_registered !== b.is_registered) return Number(a.is_registered) - Number(b.is_registered)
-    if (a.recommended_score !== b.recommended_score) return b.recommended_score - a.recommended_score
     if (a.published_at && b.published_at) return b.published_at.localeCompare(a.published_at)
+    if (a.published_at) return -1
+    if (b.published_at) return 1
     return a.title.localeCompare(b.title, 'ko')
   })
 
@@ -656,7 +672,7 @@ export default function DeliverablesPage() {
                 <div className="flex-1 overflow-y-auto px-6 py-6">
                   <div className="space-y-5">
                     <div>
-                      <p className="text-sm text-gray-500">키워드를 입력하고 채널을 선택하면 관련 게시물 후보를 검색합니다. TikTok은 기본 선택에서 제외되며, 필요할 때만 추가 조회합니다.</p>
+                      <p className="text-sm text-gray-500">키워드를 입력하고 YouTube 또는 Instagram을 선택하면 관련 게시물 후보를 검색합니다. Instagram은 일반 키워드는 웹 검색, `#해시태그`는 공식 API를 우선 사용합니다.</p>
                     </div>
 
                     <div className="flex flex-col gap-3 lg:flex-row">
@@ -667,7 +683,7 @@ export default function DeliverablesPage() {
                           value={keywordInput}
                           onChange={(event) => setKeywordInput(event.target.value)}
                           onKeyDown={(event) => event.key === 'Enter' && handleKeywordSearch()}
-                          placeholder="예) 클래시스 신제품 캠페인"
+                          placeholder="예) 클래시스 신제품 캠페인 또는 #클래시스"
                           className="w-full rounded-xl border border-gray-200 py-3 pl-10 pr-4 text-sm text-gray-900 placeholder-gray-400 focus:border-gray-400 focus:outline-none"
                           autoFocus
                         />
@@ -727,7 +743,7 @@ export default function DeliverablesPage() {
                               플랫폼
                               <select
                                 value={platformFilter}
-                                onChange={(event) => setPlatformFilter(event.target.value as 'all' | Platform)}
+                                onChange={(event) => setPlatformFilter(event.target.value as 'all' | DeliverableSearchPlatform)}
                                 className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 focus:border-gray-400 focus:outline-none"
                               >
                                 <option value="all">전체</option>
@@ -815,21 +831,23 @@ export default function DeliverablesPage() {
                                         이미 등록됨
                                       </span>
                                     )}
-                                    {!item.is_registered && item.recommended_score >= 100000 && (
-                                      <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
-                                        추천 후보
+                                    {getMediaTypeLabel(item) && (
+                                      <span className="rounded-full bg-pink-50 px-2.5 py-0.5 text-xs font-semibold text-pink-700">
+                                        {getMediaTypeLabel(item)}
                                       </span>
                                     )}
                                     <span className="text-xs text-gray-400">{formatDate(item.published_at)}</span>
                                   </div>
                                   <p className="mt-2 line-clamp-2 text-sm font-semibold text-gray-900">{item.title}</p>
                                   <p className="mt-1 truncate text-xs text-gray-400">{item.url}</p>
+                                  {item.channel_name && (
+                                    <p className="mt-1 text-xs text-gray-500">채널 {item.channel_name}</p>
+                                  )}
                                   <div className="mt-3 flex flex-wrap gap-3 text-xs text-gray-500">
                                     <span>조회 {formatNum(item.views)}</span>
                                     <span>좋아요 {formatNum(item.likes)}</span>
                                     <span>댓글 {formatNum(item.comments)}</span>
                                     <span>공유 {formatNum(item.shares)}</span>
-                                    <span>추천점수 {item.recommended_score.toLocaleString('ko-KR')}</span>
                                   </div>
                                   {item.notice && (
                                     <p className="mt-2 text-xs text-amber-600">{item.notice}</p>

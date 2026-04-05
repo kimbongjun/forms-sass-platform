@@ -27,6 +27,10 @@ interface SiteSettings {
 
 interface Props {
   initialSettings: SiteSettings
+  integrationStatus: {
+    instagramAccessTokenConfigured: boolean
+    instagramBusinessAccountConfigured: boolean
+  }
 }
 
 const LEGAL_SECTIONS: Array<{ key: keyof SiteSettings; title: string; desc: string }> = [
@@ -35,7 +39,7 @@ const LEGAL_SECTIONS: Array<{ key: keyof SiteSettings; title: string; desc: stri
   { key: 'service_agreement', title: '서비스이용동의', desc: '공개 URL: /service' },
 ]
 
-export default function AdminSettingsForm({ initialSettings }: Props) {
+export default function AdminSettingsForm({ initialSettings, integrationStatus }: Props) {
   const router = useRouter()
   const [settings, setSettings] = useState<SiteSettings>({
     site_title: '',
@@ -238,6 +242,45 @@ export default function AdminSettingsForm({ initialSettings }: Props) {
                     {uploadingOg ? '업로드 중...' : '이미지 파일 선택 (권장: 1200×630)'}
                   </button>
                 )}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-gray-200 bg-white p-6 space-y-4">
+              <div>
+                <h2 className="text-sm font-semibold text-gray-900">외부 연동 점검</h2>
+                <p className="mt-1 text-xs text-gray-500">
+                  Instagram 키워드 조회에서 `#해시태그` 검색은 공식 API를 우선 사용합니다.
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">INSTAGRAM_ACCESS_TOKEN</p>
+                      <p className="mt-1 text-xs text-gray-500">공식 해시태그 검색, 메타데이터 조회에 사용</p>
+                    </div>
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${integrationStatus.instagramAccessTokenConfigured ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                      {integrationStatus.instagramAccessTokenConfigured ? '설정됨' : '미설정'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">INSTAGRAM_BUSINESS_ACCOUNT_ID</p>
+                      <p className="mt-1 text-xs text-gray-500">공식 해시태그 검색 `user_id`로 사용</p>
+                    </div>
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${integrationStatus.instagramBusinessAccountConfigured ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                      {integrationStatus.instagramBusinessAccountConfigured ? '설정됨' : '미설정'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs leading-5 text-blue-700">
+                두 값이 모두 설정되어 있으면 Instagram `#해시태그` 검색은 공식 API를 우선 사용합니다. 하나라도 없으면 웹 검색 fallback으로 동작합니다.
               </div>
             </section>
 
