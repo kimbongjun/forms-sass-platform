@@ -24,7 +24,7 @@ import {
   X,
 } from 'lucide-react'
 import { DatePickerInput } from '@/components/common/DatePickerInput'
-import { HeaderSkeleton, SectionSkeleton, SkeletonBlock } from '@/components/common/LoadingSkeleton'
+import { HeaderSkeleton, SkeletonBlock } from '@/components/common/LoadingSkeleton'
 import { useEscapeKey } from '@/hooks/useEscapeKey'
 import type {
   DeliverableSearchPlatform,
@@ -71,6 +71,33 @@ const PLATFORM_COLORS: Record<Platform, string> = {
   other: 'bg-gray-100 text-gray-600',
 }
 
+const PLATFORM_CARD_STYLES: Record<Platform, { glow: string; chip: string }> = {
+  instagram: {
+    glow: 'from-pink-500/30 via-fuchsia-500/12 to-transparent',
+    chip: 'from-pink-500 to-orange-400',
+  },
+  youtube: {
+    glow: 'from-red-500/28 via-rose-500/12 to-transparent',
+    chip: 'from-red-500 to-rose-500',
+  },
+  tiktok: {
+    glow: 'from-cyan-400/20 via-slate-400/10 to-transparent',
+    chip: 'from-slate-900 to-slate-700',
+  },
+  facebook: {
+    glow: 'from-blue-500/28 via-sky-500/10 to-transparent',
+    chip: 'from-blue-600 to-sky-500',
+  },
+  twitter: {
+    glow: 'from-sky-500/28 via-cyan-500/10 to-transparent',
+    chip: 'from-sky-500 to-cyan-500',
+  },
+  other: {
+    glow: 'from-gray-400/20 via-slate-300/10 to-transparent',
+    chip: 'from-gray-600 to-gray-500',
+  },
+}
+
 function resolvePlatform(value: string): Platform {
   return value in PLATFORM_LABELS ? (value as Platform) : 'other'
 }
@@ -91,6 +118,14 @@ function formatDate(d: string | null) {
 function formatSyncTime(d: string | null) {
   if (!d) return '미동기화'
   return new Intl.DateTimeFormat('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(d))
+}
+
+function getHostnameLabel(url: string) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return url
+  }
 }
 
 function getMediaTypeLabel(item: DeliverableSearchResult) {
@@ -436,11 +471,24 @@ export default function DeliverablesPage() {
     acc[d.platform] = [...(acc[d.platform] ?? []), d]
     return acc
   }, {})
+  const groupedEntries = Object.entries(grouped)
+    .map(([platform, list]) => [
+      platform,
+      [...list].sort((a, b) => {
+        if (a.published_at && b.published_at) return b.published_at.localeCompare(a.published_at)
+        if (a.published_at) return -1
+        if (b.published_at) return 1
+        return b.created_at.localeCompare(a.created_at)
+      }),
+    ] as const)
+    .sort((a, b) => b[1].length - a[1].length)
 
   const isFormStep = modalStep === 'form' || modalStep === 'manual_form'
   const selectedKeywordCount = selectedKeywordKeys.size
   const existingKeywordCount = keywordResults.filter((item) => item.is_registered).length
   const newKeywordCount = keywordResults.length - existingKeywordCount
+  const totalViews = items.reduce((sum, item) => sum + item.views, 0)
+  const totalEngagement = items.reduce((sum, item) => sum + item.likes + item.comments + item.shares, 0)
   const visibleKeywordResults = keywordResults.filter((item) => {
     if (platformFilter !== 'all' && item.platform !== platformFilter) return false
     if (!showRegistered && item.is_registered) return false
@@ -474,30 +522,34 @@ export default function DeliverablesPage() {
   const loadingSkeleton = (
     <div className="space-y-5">
       <HeaderSkeleton />
-      <section className="rounded-2xl border border-gray-200 bg-white shadow-sm">
-        <div className="flex items-center gap-3 border-b border-gray-100 px-5 py-4">
-          <SkeletonBlock className="h-5 w-20 rounded-full" />
-          <SkeletonBlock className="h-4 w-12" />
-        </div>
-        <div className="space-y-3 p-5">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <div key={index} className="grid grid-cols-[96px,1.6fr,0.8fr,repeat(5,minmax(56px,0.5fr))] items-center gap-4">
-              <SkeletonBlock className="h-12 w-20 rounded-lg" />
-              <div className="space-y-2">
-                <SkeletonBlock className="h-4 w-4/5" />
-                <SkeletonBlock className="h-3 w-3/5" />
-              </div>
-              <SkeletonBlock className="h-4 w-20" />
-              <SkeletonBlock className="h-4 w-12" />
-              <SkeletonBlock className="h-4 w-12" />
-              <SkeletonBlock className="h-4 w-12" />
-              <SkeletonBlock className="h-4 w-12" />
-              <SkeletonBlock className="h-4 w-16" />
+      <div className="grid gap-4 md:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <section key={index} className="theme-panel rounded-[28px] border p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <SkeletonBlock className="h-6 w-24 rounded-full" />
+              <SkeletonBlock className="h-4 w-14" />
             </div>
-          ))}
-        </div>
-      </section>
-      <SectionSkeleton titleWidth="w-48" lines={4} />
+            <div className="mt-4 space-y-4">
+              {Array.from({ length: 3 }).map((__, cardIndex) => (
+                <div key={cardIndex} className="theme-panel-soft overflow-hidden rounded-[24px] border">
+                  <SkeletonBlock className="aspect-[4/3] w-full" />
+                  <div className="space-y-3 p-4">
+                    <SkeletonBlock className="h-4 w-20 rounded-full" />
+                    <SkeletonBlock className="h-5 w-4/5" />
+                    <SkeletonBlock className="h-4 w-3/5" />
+                    <div className="grid grid-cols-2 gap-2">
+                      <SkeletonBlock className="h-12 rounded-2xl" />
+                      <SkeletonBlock className="h-12 rounded-2xl" />
+                      <SkeletonBlock className="h-12 rounded-2xl" />
+                      <SkeletonBlock className="h-12 rounded-2xl" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
     </div>
   )
 
@@ -531,6 +583,26 @@ export default function DeliverablesPage() {
         </div>
       </div>
 
+      {!loading && items.length > 0 && (
+        <section className="grid gap-4 md:grid-cols-3">
+          <div className="theme-panel rounded-[28px] border p-5 shadow-sm">
+            <p className="theme-muted text-xs font-semibold uppercase tracking-[0.18em]">Buzzs</p>
+            <p className="theme-title mt-3 text-3xl font-semibold tracking-tight">{items.length}</p>
+            <p className="theme-muted mt-2 text-sm">산출물의 Buzz량입니다.</p>
+          </div>
+          <div className="theme-panel rounded-[28px] border p-5 shadow-sm">
+            <p className="theme-muted text-xs font-semibold uppercase tracking-[0.18em]">Views</p>
+            <p className="theme-title mt-3 text-3xl font-semibold tracking-tight">{formatNum(totalViews)}</p>
+            <p className="theme-muted mt-2 text-sm">전체 산출물의 누적 조회 규모입니다.</p>
+          </div>
+          <div className="theme-panel rounded-[28px] border p-5 shadow-sm">
+            <p className="theme-muted text-xs font-semibold uppercase tracking-[0.18em]">Engagement</p>
+            <p className="theme-title mt-3 text-3xl font-semibold tracking-tight">{formatNum(totalEngagement)}</p>
+            <p className="theme-muted mt-2 text-sm">좋아요, 댓글, 공유를 합산한 전체 반응량입니다.</p>
+          </div>
+        </section>
+      )}
+
       {loading && loadingSkeleton}
       {error && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
@@ -552,84 +624,119 @@ export default function DeliverablesPage() {
         </div>
       )}
 
-      {!loading && Object.entries(grouped).map(([platform, list]) => {
+      {!loading && groupedEntries.map(([platform, list]) => {
         const resolvedPlatform = resolvePlatform(platform)
-        return (
-        <section key={platform} className="theme-panel rounded-2xl border shadow-sm">
-          <div className="theme-divider flex items-center gap-3 border-b px-5 py-4">
-            <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${PLATFORM_COLORS[resolvedPlatform]}`}>
-              {PLATFORM_LABELS[resolvedPlatform]}
-            </span>
-            <span className="theme-subtle text-sm">{list.length}건</span>
-          </div>
+        const platformCardStyle = PLATFORM_CARD_STYLES[resolvedPlatform]
 
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[700px] text-sm">
-              <thead>
-                <tr className="theme-divider theme-panel-soft border-b text-xs font-semibold uppercase tracking-wide theme-subtle">
-                  <th className="px-5 py-3 text-left">썸네일</th>
-                  <th className="px-4 py-3 text-left">제목 / URL</th>
-                  <th className="px-4 py-3 text-center">게시일</th>
-                  <th className="px-4 py-3 text-center"><Eye className="inline h-3.5 w-3.5" /></th>
-                  <th className="px-4 py-3 text-center"><Heart className="inline h-3.5 w-3.5" /></th>
-                  <th className="px-4 py-3 text-center"><MessageCircle className="inline h-3.5 w-3.5" /></th>
-                  <th className="px-4 py-3 text-center"><Share2 className="inline h-3.5 w-3.5" /></th>
-                  <th className="px-4 py-3 text-center">동기화</th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody className="theme-divider divide-y">
-                {list.map((d) => (
-                  <tr key={d.id} className="theme-hover-surface group">
-                    <td className="px-5 py-3">
-                      {d.thumbnail_url ? (
-                        <Image
-                          src={d.thumbnail_url}
-                          alt={d.title}
-                          width={80}
-                          height={48}
-                          unoptimized
-                          className="h-12 w-20 rounded-lg object-cover"
-                        />
-                      ) : (
-                        <div className="theme-panel-soft h-12 w-20 rounded-lg" />
-                      )}
-                    </td>
-                    <td className="max-w-[220px] px-4 py-3">
-                      <p className="theme-title truncate font-medium">{d.title}</p>
-                      <a href={d.url} target="_blank" rel="noopener noreferrer" className="theme-subtle flex items-center gap-1 truncate text-xs hover:text-gray-600">
-                        <ExternalLink className="h-3 w-3 shrink-0" />
-                        {d.url}
-                      </a>
-                    </td>
-                    <td className="theme-muted px-4 py-3 text-center text-xs">{formatDate(d.published_at)}</td>
-                    <td className="theme-body px-4 py-3 text-center font-medium">{formatNum(d.views)}</td>
-                    <td className="theme-body px-4 py-3 text-center font-medium">{formatNum(d.likes)}</td>
-                    <td className="theme-body px-4 py-3 text-center font-medium">{formatNum(d.comments)}</td>
-                    <td className="theme-body px-4 py-3 text-center font-medium">{formatNum(d.shares)}</td>
-                    <td className="theme-subtle whitespace-nowrap px-4 py-3 text-center text-xs">{formatSyncTime(d.last_synced_at)}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                        <button type="button" onClick={() => openEdit(d)} className="theme-subtle theme-hover-surface rounded-lg p-1.5 hover:text-gray-700" title="수정">
+        return (
+          <section key={platform} className="theme-panel overflow-hidden rounded-[30px] border shadow-sm">
+            <div className={`h-1.5 w-full bg-gradient-to-r ${platformCardStyle.chip}`} />
+            <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${PLATFORM_COLORS[resolvedPlatform]}`}>
+                  {PLATFORM_LABELS[resolvedPlatform]}
+                </span>
+                <span className="theme-subtle text-sm">{list.length}개</span>
+              </div>
+              <p className="theme-muted text-xs">최신 등록순 3열 카드 갤러리</p>
+            </div>
+
+            <div className="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-3">
+              {list.map((d) => (
+                <article
+                  key={d.id}
+                  className="theme-panel-soft group relative overflow-hidden rounded-[26px] border shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-gray-300 hover:shadow-xl"
+                >
+                  <div className={`pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b ${platformCardStyle.glow}`} />
+
+                  <div className="relative aspect-[4/3] overflow-hidden">
+                    {d.thumbnail_url ? (
+                      <Image
+                        src={d.thumbnail_url}
+                        alt={d.title}
+                        fill
+                        sizes="(max-width: 639px) 100vw, (max-width: 1279px) 50vw, 33vw"
+                        unoptimized
+                        className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                      />
+                    ) : (
+                      <div className="theme-panel flex h-full w-full items-center justify-center">
+                        <Share2 className="h-10 w-10 text-gray-300" />
+                      </div>
+                    )}
+
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+                    <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-4">
+                      <div className="min-w-0">
+                        <span className={`inline-flex rounded-full bg-gradient-to-r px-3 py-1 text-[11px] font-semibold text-white shadow-sm ${platformCardStyle.chip}`}>
+                          {PLATFORM_LABELS[resolvedPlatform]}
+                        </span>
+                        <p className="mt-2 truncate text-xs text-white/80">{getHostnameLabel(d.url)}</p>
+                      </div>
+                      <div className="flex items-center gap-1 rounded-full bg-black/35 p-1 text-white backdrop-blur-sm">
+                        <button
+                          type="button"
+                          onClick={() => openEdit(d)}
+                          className="rounded-full p-2 hover:bg-white/15"
+                          title="수정"
+                          aria-label="산출물 수정"
+                        >
                           <Edit2 className="h-3.5 w-3.5" />
                         </button>
                         <button
                           type="button"
                           onClick={() => handleDelete(d.id)}
                           disabled={deletingId === d.id}
-                          className="rounded-lg p-1.5 text-gray-300 hover:bg-red-50 hover:text-red-500 disabled:opacity-30"
+                          className="rounded-full p-2 hover:bg-white/15 disabled:opacity-40"
                           title="삭제"
+                          aria-label="산출물 삭제"
                         >
                           {deletingId === d.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                         </button>
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 p-4">
+                    <div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="theme-muted text-xs">{formatDate(d.published_at)}</span>
+                        <span className="theme-subtle text-[11px]">Sync {formatSyncTime(d.last_synced_at)}</span>
+                      </div>
+                      <h3 className="theme-title mt-2 line-clamp-2 text-base font-semibold leading-snug">{d.title}</h3>
+                      <a
+                        href={d.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="theme-muted mt-2 inline-flex max-w-full items-center gap-1 text-xs hover:text-gray-600"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate">{d.url}</span>
+                      </a>
+                      {d.memo && <p className="theme-subtle mt-2 line-clamp-2 text-xs">{d.memo}</p>}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { id: 'views', icon: Eye, label: '조회수', value: formatNum(d.views) },
+                        { id: 'likes', icon: Heart, label: '좋아요', value: formatNum(d.likes) },
+                        { id: 'comments', icon: MessageCircle, label: '댓글', value: formatNum(d.comments) },
+                        { id: 'shares', icon: Share2, label: '공유', value: formatNum(d.shares) },
+                      ].map(({ id, icon: Icon, label, value }) => (
+                        <div key={id} className="theme-panel rounded-2xl border px-3 py-2.5">
+                          <div className="theme-muted flex items-center gap-1.5 text-[11px] font-medium">
+                            <Icon className="h-3.5 w-3.5" />
+                            {label}
+                          </div>
+                          <p className="theme-title mt-1 text-sm font-semibold">{value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
         )
       })}
 
