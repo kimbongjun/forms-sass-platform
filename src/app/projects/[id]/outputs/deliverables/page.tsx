@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import { DatePickerInput } from '@/components/common/DatePickerInput'
 import { HeaderSkeleton, SectionSkeleton, SkeletonBlock } from '@/components/common/LoadingSkeleton'
+import { useEscapeKey } from '@/hooks/useEscapeKey'
 import type {
   DeliverableSearchPlatform,
   DeliverableSearchResult,
@@ -249,6 +250,8 @@ export default function DeliverablesPage() {
   function closeModal() {
     setModalOpen(false)
   }
+
+  useEscapeKey(modalOpen, closeModal)
 
   function switchToManual() {
     setForm({ ...EMPTY_FORM, url: urlInput.trim() })

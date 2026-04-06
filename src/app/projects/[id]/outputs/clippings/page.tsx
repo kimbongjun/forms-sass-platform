@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { DatePickerInput, DateRangePickerInput } from '@/components/common/DatePickerInput'
 import { HeaderSkeleton, SectionSkeleton, SkeletonBlock } from '@/components/common/LoadingSkeleton'
+import { useEscapeKey } from '@/hooks/useEscapeKey'
 import type { ParsedClipping } from '@/features/clippings/types'
 
 interface Clipping {
@@ -168,6 +169,8 @@ export default function ClippingsPage() {
   function closeModal() {
     setModalOpen(false)
   }
+
+  useEscapeKey(modalOpen, closeModal)
 
   async function handleParseUrl() {
     const url = form.url.trim()

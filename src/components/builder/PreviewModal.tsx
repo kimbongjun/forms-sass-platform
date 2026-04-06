@@ -2,6 +2,7 @@
 
 import { X } from 'lucide-react'
 import PublicForm from '@/components/form/PublicForm'
+import { useEscapeKey } from '@/hooks/useEscapeKey'
 import type { FormField } from '@/types/database'
 
 interface PreviewModalProps {
@@ -11,6 +12,8 @@ interface PreviewModalProps {
 }
 
 export default function PreviewModal({ fields, themeColor, onClose }: PreviewModalProps) {
+  useEscapeKey(true, onClose)
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"

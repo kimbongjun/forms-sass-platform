@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import { DateRangePickerInput } from '@/components/common/DatePickerInput'
 import { SkeletonBlock } from '@/components/common/LoadingSkeleton'
+import { useEscapeKey } from '@/hooks/useEscapeKey'
 import { createClient } from '@/utils/supabase/client'
 import { ProjectTask, ProjectTaskStatus } from '@/types/project-task'
 
@@ -309,6 +310,8 @@ function TaskEditSheet({
   onSave: () => void
 }) {
   const set = (key: keyof EditingTask, value: string) => onChange({ ...editing, [key]: value })
+
+  useEscapeKey(true, onClose)
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/35 backdrop-blur-[1px]">
