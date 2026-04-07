@@ -44,10 +44,11 @@ export default function TabNavigation({ projectId }: TabNavigationProps) {
 
   const activeMenu: OpenMenu = isExecution ? 'execution' : isOutputs ? 'outputs' : openMenu
 
-  // pathname 변경 시 현재 섹션에 해당하지 않는 메뉴 닫기
+  // pathname 변경 시 운영/산출물 섹션 밖으로 이동하면 열린 메뉴 닫기
   useEffect(() => {
-    if (!isExecution) setExecutionOpen(false)
-    if (!isOutputs) setOutputsOpen(false)
+    if (!isExecution && !isOutputs) {
+      setOpenMenu(null)
+    }
   }, [pathname, isExecution, isOutputs])
 
   useEffect(() => {
