@@ -119,24 +119,21 @@ export async function POST() {
 
 function deriveNextVersion(lastVersion: string | null): string {
   if (!lastVersion) {
-    // 첫 릴리즈: 날짜 기반 버전
-    const now = new Date()
-    return `v${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}`
+    // 첫 릴리즈: v1.0.0 semver 시작
+    return 'v1.0.0'
   }
 
-  // semver (v1.2.3) 감지
+  // semver (v1.2.3) 감지 → patch 증가
   const semver = lastVersion.match(/^v?(\d+)\.(\d+)\.(\d+)$/)
   if (semver) {
     const patch = parseInt(semver[3], 10) + 1
     return `v${semver[1]}.${semver[2]}.${patch}`
   }
 
-  // 날짜 기반 버전 (v2026.04.02) — 오늘 날짜로 갱신
-  const dateVer = lastVersion.match(/^v?(\d{4})\.(\d{2})\.(\d{2})/)
-  if (dateVer) {
-    const now = new Date()
-    const newDate = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}`
-    return lastVersion === `v${newDate}` ? `v${newDate}-2` : `v${newDate}`
+  // v1.2 형식 → patch 추가 (v1.2.1)
+  const shortver = lastVersion.match(/^v?(\d+)\.(\d+)$/)
+  if (shortver) {
+    return `v${shortver[1]}.${shortver[2]}.1`
   }
 
   // 알 수 없는 형식: 숫자 suffix 증가
@@ -145,7 +142,7 @@ function deriveNextVersion(lastVersion: string | null): string {
     return lastVersion.replace(/\d+$/, String(parseInt(suffix[1], 10) + 1))
   }
 
-  return `${lastVersion}-next`
+  return `${lastVersion}-1`
 }
 
 function escapeHtml(str: string) {
