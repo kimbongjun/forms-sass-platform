@@ -1,10 +1,19 @@
 'use client'
 
-import { useState, useRef, useTransition } from 'react'
+import { useState, useRef, useEffect, useTransition } from 'react'
 import {
   Search, TrendingUp, FileText, MessageSquare, RefreshCw, Grape,
-  Download, Monitor, Smartphone, Calendar, Plus, X, Info,
+  Download, Monitor, Smartphone, Calendar, Plus, X, Info, Wifi, WifiOff,
 } from 'lucide-react'
+
+// ── Naver API 응답 타입 (route.ts 와 동기화) ────────────────────
+interface NaverApiData {
+  /** 검색광고 API 실측 월간 검색량 (null = 광고 API 미설정) */
+  monthlyPcQcCnt: number | null
+  monthlyMobileQcCnt: number | null
+  contentByPlatform: { blog: number; cafe: number; news: number; kin: number; shop: number }
+  fetchedAt: string
+}
 
 // ── 해시 유틸 ────────────────────────────────────────────────────
 function hashStr(s: string): number {
@@ -36,8 +45,23 @@ function getMonthLabels(count: number): { key: string; label: string }[] {
 
 const ALL_MONTHS = getMonthLabels(12)
 
-// 키워드 비교 색상 팔레트
+// 키워드 비교 기본 팔레트 (브랜드 색이 없을 때 폴백)
 const KEYWORD_COLORS = ['#8B5CF6', '#10B981', '#3B82F6', '#F59E0B', '#EF4444']
+
+// 브랜드별 지정 색상 (소문자 정규화 비교)
+const BRAND_COLORS: Record<string, string> = {
+  '볼뉴머': '#B4221B',
+  '써마지': '#59004F',
+  '덴서티': '#0C3A47',
+  '올리지오': '#7954C0',
+  '슈링크': '#182D60',
+  '슈링크유니버스': '#182D60',
+  '울쎄라': '#E8B02F',
+}
+
+function getKeywordColor(kw: string, fallbackIdx: number): string {
+  return BRAND_COLORS[kw.trim()] ?? KEYWORD_COLORS[fallbackIdx % KEYWORD_COLORS.length]
+}
 
 type Period = '1y' | '3m' | '1m'
 
@@ -382,16 +406,84 @@ export default function BlueberryClient() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [, startTransition] = useTransition()
 
-  // 주요 키워드 데이터 (keyword 문자열 고정 → refresh 시 불변)
-  const primaryData = keyword ? generateData(keyword, platform) : null
+  // ── API 상태 (Naver 전용) ────────────────────────────────────
+  const [naverApiData, setNaverApiData] = useState<NaverApiData | null>(null)
+  const [apiLoading, setApiLoading] = useState(false)
+  const [apiConfigured, setApiConfigured] = useState(true)
 
-  // 비교 포함 전체 시리즈
+  // ── Naver 키워드/플랫폼 변경 시 API 호출 ────────────────────
+  useEffect(() => {
+    if (!keyword || platform !== 'naver') return
+    setApiLoading(true)
+    setNaverApiData(null)
+
+    fetch('/api/blueberry/naver', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ keyword }),
+    })
+      .then((r) => r.json())
+      .then((data: NaverApiData & { error?: string }) => {
+        if (data.error?.includes('환경변수')) { setApiConfigured(false); return }
+        setApiConfigured(true)
+        setNaverApiData(data)
+      })
+      .catch(() => { /* 네트워크 오류 시 목업 유지 */ })
+      .finally(() => setApiLoading(false))
+  }, [keyword, platform])
+
+  // ── 목업 → 실측 데이터 병합 (Naver 전용) ────────────────────
+  function resolveData(mock: KeywordData): KeywordData & { isReal: boolean; hasAdVolume: boolean } {
+    if (platform === 'naver' && naverApiData) {
+      const nd = naverApiData
+      const hasAdVol = nd.monthlyPcQcCnt !== null && nd.monthlyMobileQcCnt !== null
+      const totalMonthly = hasAdVol ? (nd.monthlyPcQcCnt! + nd.monthlyMobileQcCnt!) : null
+
+      // 검색량: 검색광고 API 실측값으로 목업 형태 스케일링
+      const scaleArr = (arr: number[], total: number) => {
+        const max = Math.max(...arr) || 1
+        return arr.map((v) => Math.round(v / max * total))
+      }
+      const searchVolume = hasAdVol ? scaleArr(mock.searchVolume, totalMonthly!) : mock.searchVolume
+      const searchVolumePC = hasAdVol ? scaleArr(mock.searchVolumePC, nd.monthlyPcQcCnt!) : mock.searchVolumePC
+      const searchVolumeMobile = hasAdVol ? scaleArr(mock.searchVolumeMobile, nd.monthlyMobileQcCnt!) : mock.searchVolumeMobile
+
+      const cp = [
+        { name: '블로그', count: nd.contentByPlatform.blog, color: '#03C75A' },
+        { name: '카페', count: nd.contentByPlatform.cafe, color: '#FF6B00' },
+        { name: '쇼핑', count: nd.contentByPlatform.shop, color: '#E91E63' },
+        { name: '지식iN', count: nd.contentByPlatform.kin, color: '#FFC107' },
+        { name: '뉴스', count: nd.contentByPlatform.news, color: '#1A73E8' },
+      ].filter((p) => p.count > 0).sort((a, b) => b.count - a.count)
+
+      return {
+        ...mock,
+        searchVolume,
+        searchVolumePC,
+        searchVolumeMobile,
+        contentByPlatform: cp.length ? cp : mock.contentByPlatform,
+        platformMentions: cp.length ? cp : mock.platformMentions,
+        isReal: true,
+        hasAdVolume: hasAdVol,
+      }
+    }
+    // Google은 목업 유지
+    return { ...mock, isReal: false, hasAdVolume: false }
+  }
+
+  // 주요 키워드 데이터 (keyword 문자열 고정 → refresh 시 불변)
+  const mockPrimary = keyword ? generateData(keyword, platform) : null
+  const primaryData = mockPrimary ? resolveData(mockPrimary) : null
+  const isRealData = primaryData?.isReal ?? false
+  const hasAdVolume = (primaryData as (KeywordData & { hasAdVolume?: boolean }) | null)?.hasAdVolume ?? false
+
+  // 비교 포함 전체 시리즈 (비교 키워드는 목업 유지)
   const allKeywords = keyword ? [keyword, ...compareKeywords] : []
-  const allSeriesData = allKeywords.map((kw, i) => ({
-    keyword: kw,
-    data: generateData(kw, platform),
-    color: KEYWORD_COLORS[i % KEYWORD_COLORS.length],
-  }))
+  const allSeriesData = allKeywords.map((kw, i) => {
+    const mock = generateData(kw, platform)
+    const resolved = kw === keyword && primaryData ? primaryData : mock
+    return { keyword: kw, data: resolved, color: getKeywordColor(kw, i) }
+  })
 
   // 기간 슬라이스
   const PERIOD_COUNT: Record<Period, number> = { '1y': 12, '3m': 3, '1m': 1 }
@@ -415,7 +507,23 @@ export default function BlueberryClient() {
   function handleRefresh() {
     if (!keyword || isRefreshing) return
     setIsRefreshing(true)
-    setTimeout(() => setIsRefreshing(false), 700)
+    setNaverApiData(null)
+
+    if (platform === 'naver') {
+      fetch('/api/blueberry/naver', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keyword }),
+      })
+        .then((r) => r.json())
+        .then((data: NaverApiData & { error?: string }) => {
+          if (!data.error) setNaverApiData(data)
+        })
+        .catch(() => {})
+        .finally(() => setIsRefreshing(false))
+    } else {
+      setTimeout(() => setIsRefreshing(false), 500)
+    }
   }
 
   function handleAddCompare() {
@@ -434,11 +542,25 @@ export default function BlueberryClient() {
   }
 
   const platformLabel = platform === 'naver' ? 'Naver' : 'Google'
-  const latestSearch = primaryData ? primaryData.searchVolume.slice(12 - monthCount).at(-1)! : 0
-  const latestPC = primaryData ? primaryData.searchVolumePC.slice(12 - monthCount).at(-1)! : 0
-  const latestMobile = primaryData ? primaryData.searchVolumeMobile.slice(12 - monthCount).at(-1)! : 0
-  const latestContent = primaryData ? primaryData.contentVolume.slice(12 - monthCount).at(-1)! : 0
-  const totalMention = primaryData ? primaryData.platformMentions.reduce((s, p) => s + p.count, 0) : 0
+
+  // 기간 누적합 계산
+  const sum = (arr: number[]) => arr.reduce((s, v) => s + v, 0)
+  const totalSearch  = primaryData ? sum(primaryData.searchVolume.slice(12 - monthCount))  : 0
+  const totalPC      = primaryData ? sum(primaryData.searchVolumePC.slice(12 - monthCount)) : 0
+  const totalMobile  = primaryData ? sum(primaryData.searchVolumeMobile.slice(12 - monthCount)) : 0
+  const totalContent = primaryData ? sum(primaryData.contentVolume.slice(12 - monthCount)) : 0
+  const totalMention = primaryData ? sum(primaryData.platformMentions.map((p) => p.count))  : 0
+
+  // 실측 데이터는 contentByPlatform이 이미 실측값이므로 그대로 사용
+  // 목업 데이터는 기간 누적 기준으로 스케일링
+  const scaledContentByPlatform = isRealData
+    ? (primaryData?.contentByPlatform ?? [])
+    : (primaryData?.contentByPlatform ?? []).map((p) => ({
+        ...p,
+        count: Math.round(p.count * (totalContent / Math.max(1, primaryData?.contentVolume[11] ?? 1))),
+      }))
+
+  const searchUnit = ''
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-8 space-y-8">
@@ -454,6 +576,29 @@ export default function BlueberryClient() {
           <p className="mt-1 text-sm text-gray-500">
             키워드를 입력하면 검색량·콘텐츠 발행량·플랫폼 언급량을 분석합니다.
           </p>
+          {/* API 연동 상태 표시 (Naver 전용) */}
+          {platform === 'naver' && (
+            <div className="mt-2 flex items-center gap-1.5">
+              {!apiConfigured ? (
+                <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700">
+                  <WifiOff className="h-3 w-3" />
+                  Naver API 미설정 — 추정 데이터
+                </span>
+              ) : apiLoading ? (
+                <span className="flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-medium text-gray-500">
+                  <RefreshCw className="h-3 w-3 animate-spin" />
+                  Naver 실측 데이터 로딩 중…
+                </span>
+              ) : isRealData ? (
+                <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
+                  <Wifi className="h-3 w-3" />
+                  {hasAdVolume
+                    ? 'Naver 검색광고 · 검색 API 연동됨'
+                    : 'Naver 검색 API 연동됨'}
+                </span>
+              ) : null}
+            </div>
+          )}
         </div>
         {keyword && (
           <div className="flex items-center gap-2">
@@ -533,7 +678,7 @@ export default function BlueberryClient() {
               </button>
             </div>
 
-            <div className="ml-auto flex items-center gap-1 rounded-xl bg-gray-100 p-1">
+<div className="ml-auto flex items-center gap-1 rounded-xl bg-gray-100 p-1">
               {(['bar', 'line'] as const).map((t) => (
                 <button key={t} type="button" onClick={() => setChartType(t)}
                   className={['rounded-lg px-3 py-1.5 text-xs font-medium transition-colors', chartType === t ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'].join(' ')}>
@@ -557,7 +702,7 @@ export default function BlueberryClient() {
           )}
 
           {/* KPI 카드 — 측정 기준 명시 */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid md:grid-cols-3 gap-4">
 
             {/* 검색량 */}
             <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
@@ -565,21 +710,28 @@ export default function BlueberryClient() {
                 <div className="inline-flex rounded-xl p-2 bg-violet-50 shrink-0">
                   <TrendingUp className="h-4 w-4 text-violet-600" />
                 </div>
-                <span className="flex items-center gap-1 text-[10px] leading-tight text-gray-400 text-right">
-                  <Info className="h-3 w-3 shrink-0" />
-                  {platformLabel} 월간 검색 추정치
+                <span className={[
+                  'flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium',
+                  isRealData ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-400',
+                ].join(' ')}>
+                  {isRealData ? <Wifi className="h-3 w-3 shrink-0" /> : <Info className="h-3 w-3 shrink-0" />}
+                  {isRealData
+                    ? (hasAdVolume ? `${platformLabel} 검색광고 API 실측` : `${platformLabel} 검색 API`)
+                    : '추정값'}
                 </span>
               </div>
-              <p className="mt-3 text-2xl font-bold text-gray-900">{fmt(latestSearch)}</p>
-              <p className="text-sm text-gray-500">월간 검색량</p>
+              <p className="mt-3 text-2xl font-bold text-gray-900">
+                {fmt(totalSearch)}{searchUnit && <span className="ml-1 text-sm font-normal text-gray-400">{searchUnit}</span>}
+              </p>
+              <p className="text-sm text-gray-500">검색량 · {periodLabel} 누적</p>
               <div className="mt-3 space-y-1.5 border-t border-gray-100 pt-3">
                 <div className="flex items-center justify-between text-xs">
                   <span className="flex items-center gap-1 text-gray-400"><Monitor className="h-3 w-3" /> PC</span>
-                  <span className="font-semibold text-gray-700">{fmt(latestPC)}</span>
+                  <span className="font-semibold text-gray-700">{fmt(totalPC)}</span>
                 </div>
                 <div className="flex items-center justify-between text-xs">
                   <span className="flex items-center gap-1 text-gray-400"><Smartphone className="h-3 w-3" /> Mobile</span>
-                  <span className="font-semibold text-gray-700">{fmt(latestMobile)}</span>
+                  <span className="font-semibold text-gray-700">{fmt(totalMobile)}</span>
                 </div>
               </div>
             </div>
@@ -590,15 +742,18 @@ export default function BlueberryClient() {
                 <div className="inline-flex rounded-xl p-2 bg-blue-50 shrink-0">
                   <FileText className="h-4 w-4 text-blue-600" />
                 </div>
-                <span className="flex items-center gap-1 text-[10px] leading-tight text-gray-400 text-right">
-                  <Info className="h-3 w-3 shrink-0" />
-                  {platformLabel} 최근 1개월 신규 콘텐츠
+                <span className={[
+                  'flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium',
+                  isRealData ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-400',
+                ].join(' ')}>
+                  {isRealData ? <Wifi className="h-3 w-3 shrink-0" /> : <Info className="h-3 w-3 shrink-0" />}
+                  {isRealData ? `${platformLabel} 검색 API 실측` : '추정값'}
                 </span>
               </div>
-              <p className="mt-3 text-2xl font-bold text-gray-900">{fmt(latestContent)}</p>
-              <p className="text-sm text-gray-500">콘텐츠 발행량</p>
+              <p className="mt-3 text-2xl font-bold text-gray-900">{fmt(totalContent)}</p>
+              <p className="text-sm text-gray-500">콘텐츠 발행량 · {periodLabel} 누적</p>
               <div className="mt-3 space-y-1.5 border-t border-gray-100 pt-3">
-                {primaryData.contentByPlatform.map((p) => (
+                {scaledContentByPlatform.map((p) => (
                   <div key={p.name} className="flex items-center justify-between text-xs">
                     <span className="flex items-center gap-1.5 text-gray-400">
                       <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
@@ -616,13 +771,16 @@ export default function BlueberryClient() {
                 <div className="inline-flex rounded-xl p-2 bg-emerald-50 shrink-0">
                   <MessageSquare className="h-4 w-4 text-emerald-600" />
                 </div>
-                <span className="flex items-center gap-1 text-[10px] leading-tight text-gray-400 text-right">
-                  <Info className="h-3 w-3 shrink-0" />
-                  {platformLabel} 누적 언급 건수
+                <span className={[
+                  'flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium',
+                  isRealData ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-400',
+                ].join(' ')}>
+                  {isRealData ? <Wifi className="h-3 w-3 shrink-0" /> : <Info className="h-3 w-3 shrink-0" />}
+                  {isRealData ? `${platformLabel} 검색 API 실측` : '추정값'}
                 </span>
               </div>
               <p className="mt-3 text-2xl font-bold text-gray-900">{fmt(totalMention)}</p>
-              <p className="text-sm text-gray-500">플랫폼 언급량</p>
+              <p className="text-sm text-gray-500">플랫폼 언급량 · 누적</p>
               <div className="mt-3 space-y-1.5 border-t border-gray-100 pt-3">
                 {primaryData.platformMentions.map((p) => (
                   <div key={p.name} className="flex items-center justify-between text-xs">
@@ -643,7 +801,10 @@ export default function BlueberryClient() {
             <p className="mb-3 text-sm font-semibold text-violet-800">키워드 비교 분석</p>
             <div className="flex flex-wrap items-center gap-2">
               {/* 주요 키워드 칩 */}
-              <span className="flex items-center gap-1.5 rounded-full bg-violet-600 px-3 py-1 text-xs font-semibold text-white">
+              <span
+                className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold text-white"
+                style={{ backgroundColor: getKeywordColor(keyword, 0) }}
+              >
                 <span className="h-1.5 w-1.5 rounded-full bg-white/80" />
                 {keyword}
               </span>
@@ -652,7 +813,7 @@ export default function BlueberryClient() {
                 <span
                   key={kw}
                   className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold text-white"
-                  style={{ backgroundColor: KEYWORD_COLORS[(i + 1) % KEYWORD_COLORS.length] }}
+                  style={{ backgroundColor: getKeywordColor(kw, i + 1) }}
                 >
                   <span className="h-1.5 w-1.5 rounded-full bg-white/80" />
                   {kw}

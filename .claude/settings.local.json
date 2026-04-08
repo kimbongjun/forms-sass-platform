@@ -9,7 +9,14 @@
       "Bash(echo \"EXIT:$?\")",
       "Bash(npx next:*)",
       "Bash(git add:*)",
-      "Bash(git commit -m ':*)"
+      "Bash(git commit -m ':*)",
+      "Bash(git push:*)",
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "Bash(./node_modules/.bin/tsc --noEmit)",
+      "Bash(D:/workspace/form-saas-platform/node_modules/.bin/tsc --noEmit)",
+      "Bash(taskkill:*)",
+      "Bash(cmd.exe:*)",
+      "Bash(powershell:*)"
     ]
   }
 }
