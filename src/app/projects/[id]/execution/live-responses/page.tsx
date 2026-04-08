@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { BarChart3, Download, MessageSquareText } from 'lucide-react'
 import { createServerClient } from '@/utils/supabase/server'
+import LiveFeed from './_components/LiveFeed'
 
 interface LiveResponsesPageProps {
   params: Promise<{ id: string }>
@@ -66,15 +67,13 @@ export default async function LiveResponsesPage({ params }: LiveResponsesPagePro
     }
   }
 
-  const formMap = new Map((forms ?? []).map((form) => [form.id, form]))
-
   return (
     <div className="space-y-5">
       <section className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-400">Execution</p>
         <h2 className="mt-2 text-2xl font-semibold text-gray-900">라이브 응답 허브</h2>
         <p className="mt-2 text-sm text-gray-500">
-          프로젝트에 연결된 폼의 최근 응답 흐름과 폼별 응답 규모를 빠르게 확인합니다.
+          프로젝트에 연결된 폼의 최근 응답 흐름과 폼별 응답 규모를 실시간으로 확인합니다.
         </p>
       </section>
 
@@ -92,7 +91,7 @@ export default async function LiveResponsesPage({ params }: LiveResponsesPagePro
         <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Recent Feed</p>
           <p className="mt-3 text-3xl font-semibold text-gray-900">{submissions?.length ?? 0}</p>
-          <p className="mt-1 text-sm text-gray-500">현재 표시 중인 최근 응답</p>
+          <p className="mt-1 text-sm text-gray-500">최근 수집 응답</p>
         </div>
       </section>
 
@@ -157,49 +156,16 @@ export default async function LiveResponsesPage({ params }: LiveResponsesPagePro
             </div>
           </section>
 
+          {/* Realtime 피드 클라이언트 컴포넌트 */}
           <section className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-            <h3 className="text-lg font-semibold text-gray-900">최근 응답 피드</h3>
-            <p className="mt-1 text-sm text-gray-500">최신 수집 응답 기준으로 어떤 폼이 움직이고 있는지 빠르게 확인합니다.</p>
-
-            <div className="mt-5 overflow-hidden rounded-2xl border border-gray-200">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">
-                  <tr>
-                    <th className="px-4 py-3">폼</th>
-                    <th className="px-4 py-3">수집 시각</th>
-                    <th className="px-4 py-3">이동</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(submissions ?? []).length === 0 ? (
-                    <tr>
-                      <td colSpan={3} className="px-4 py-6 text-center text-sm text-gray-400 sm:py-10">
-                        아직 수집된 응답이 없습니다.
-                      </td>
-                    </tr>
-                  ) : (
-                    (submissions ?? []).map((submission) => {
-                      const form = formMap.get(submission.project_id)
-
-                      return (
-                        <tr key={submission.id} className="border-t border-gray-100">
-                          <td className="px-4 py-4 font-medium text-gray-900">{form?.title ?? '알 수 없는 폼'}</td>
-                          <td className="px-4 py-4 text-gray-500">{formatDateTime(submission.created_at)}</td>
-                          <td className="px-4 py-4">
-                            <Link
-                              href={`/projects/${workspaceId}/execution/forms/${submission.project_id}?tab=responses`}
-                              className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
-                            >
-                              신청 현황 열기
-                            </Link>
-                          </td>
-                        </tr>
-                      )
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <h3 className="mb-1 text-lg font-semibold text-gray-900">최근 응답 피드</h3>
+            <p className="mb-5 text-sm text-gray-500">새 응답이 들어오면 자동으로 반영됩니다.</p>
+            <LiveFeed
+              workspaceId={workspaceId}
+              forms={forms}
+              initialSubmissions={submissions ?? []}
+              initialTotal={totalResponses ?? 0}
+            />
           </section>
         </>
       )}

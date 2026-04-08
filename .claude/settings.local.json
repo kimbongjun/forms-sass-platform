@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(wc -l /d/workspace/form-saas-platform/src/components/*/*.tsx)"
+      "Bash(wc -l /d/workspace/form-saas-platform/src/components/*/*.tsx)",
+      "Bash(cat:*)",
+      "Bash(xargs -I {} find {} -type f)",
+      "Bash(npx tsc:*)",
+      "Bash(node:*)",
+      "Bash(echo \"EXIT:$?\")"
     ]
   }
 }

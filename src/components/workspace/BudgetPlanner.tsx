@@ -35,6 +35,7 @@ function createItem(id: string): ProjectBudgetItem {
     name: '',
     type: 'media',
     amount: 0,
+    actual_amount: null,
     min_amount: null,
     max_amount: null,
     weight: 0,
@@ -59,6 +60,10 @@ export default function BudgetPlanner({
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const currencySymbol = CURRENCY_SYMBOL[currency] ?? currency
+
+  const totalPlanned = useMemo(() => items.reduce((s, i) => s + (Number(i.amount) || 0), 0), [items])
+  const totalActual = useMemo(() => items.reduce((s, i) => s + (Number(i.actual_amount) || 0), 0), [items])
+  const utilizationRate = totalPlanned > 0 ? Math.round((totalActual / totalPlanned) * 100) : 0
 
   const chartData = useMemo(() => {
     const normalized = items
@@ -138,6 +143,27 @@ export default function BudgetPlanner({
       )}
 
       <section className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm">
+        {totalActual > 0 && (
+          <div className="mb-5 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+            <div className="mb-2 flex items-center justify-between text-sm">
+              <span className="font-semibold text-gray-900">집행률</span>
+              <span className={`font-bold ${utilizationRate > 100 ? 'text-red-600' : 'text-gray-900'}`}>
+                {utilizationRate}%
+              </span>
+            </div>
+            <div className="h-2.5 w-full overflow-hidden rounded-full bg-gray-200">
+              <div
+                className={`h-full rounded-full transition-all ${utilizationRate > 100 ? 'bg-red-500' : 'bg-gray-900'}`}
+                style={{ width: `${Math.min(utilizationRate, 100)}%` }}
+              />
+            </div>
+            <div className="mt-2 flex justify-between text-xs text-gray-500">
+              <span>집행 {currencySymbol}{formatNumberWithCommas(totalActual)}</span>
+              <span>계획 {currencySymbol}{formatNumberWithCommas(totalPlanned)}</span>
+            </div>
+          </div>
+        )}
+
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div>
             <label className="mb-1.5 block text-xs font-medium text-gray-500">총 예산</label>
@@ -185,16 +211,16 @@ export default function BudgetPlanner({
         <h3 className="text-sm font-semibold text-gray-900">입력 가이드</h3>
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           <div className="rounded-xl bg-gray-50 px-3 py-2 text-xs text-gray-600">
-            <strong>범위 최소/최대</strong>: 협의 가능한 예산 상한/하한입니다. 실제 집행 금액과의 차이를 비교할 수 있습니다.
+            <strong>범위 최소/최대</strong>: 협의 가능한 예산 상한/하한입니다.
           </div>
           <div className="rounded-xl bg-gray-50 px-3 py-2 text-xs text-gray-600">
-            <strong>예산 금액</strong>: 실제로 배정하려는 금액입니다. 차트와 총합 검토의 기준이 됩니다.
+            <strong>예산 금액</strong>: 실제로 배정하려는 계획 금액입니다. 차트와 총합 검토의 기준이 됩니다.
           </div>
           <div className="rounded-xl bg-gray-50 px-3 py-2 text-xs text-gray-600">
-            <strong>비중</strong>: 도넛 차트에서 각 항목이 차지하는 우선순위입니다. 금액과 별도로 전략상 중요도를 표현할 수 있습니다.
+            <strong>실집행</strong>: 실제로 집행된 금액입니다. 입력하면 항목별·전체 집행률을 확인할 수 있습니다.
           </div>
           <div className="rounded-xl bg-gray-50 px-3 py-2 text-xs text-gray-600">
-            <strong>종류</strong>: 미디어, 제작, 운영처럼 항목을 묶는 분류입니다. 보고와 필터링 기준으로 활용됩니다.
+            <strong>비중</strong>: 도넛 차트에서 각 항목이 차지하는 전략적 우선순위입니다.
           </div>
         </div>
       </section>
@@ -213,9 +239,14 @@ export default function BudgetPlanner({
         </div>
 
         <div className="space-y-3">
-          {items.map((item) => (
+          {items.map((item) => {
+            const itemActual = Number(item.actual_amount) || 0
+            const itemPlanned = Number(item.amount) || 0
+            const itemRate = itemPlanned > 0 ? Math.round((itemActual / itemPlanned) * 100) : null
+
+            return (
             <div key={item.id} className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-              <div className="grid gap-3 lg:grid-cols-6">
+              <div className="grid gap-3 lg:grid-cols-7">
                 <input
                   type="text"
                   value={item.name}
@@ -275,6 +306,19 @@ export default function BudgetPlanner({
                     className={`${inputCls} pl-7`}
                   />
                 </div>
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">{currencySymbol}</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={item.actual_amount == null ? '' : formatNumberWithCommas(item.actual_amount)}
+                    onChange={(event) =>
+                      updateItem(item.id, { actual_amount: parseNullableNumberInput(event.target.value) })
+                    }
+                    placeholder="실집행"
+                    className={`${inputCls} pl-7 ${itemRate !== null && itemRate > 100 ? 'border-red-300 focus:ring-red-200' : ''}`}
+                  />
+                </div>
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -294,8 +338,23 @@ export default function BudgetPlanner({
                   </button>
                 </div>
               </div>
+              {itemRate !== null && (
+                <div className="mt-2.5">
+                  <div className="mb-1 flex items-center justify-between text-xs text-gray-500">
+                    <span>집행률</span>
+                    <span className={itemRate > 100 ? 'font-semibold text-red-600' : ''}>{itemRate}%</span>
+                  </div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
+                    <div
+                      className={`h-full rounded-full ${itemRate > 100 ? 'bg-red-500' : 'bg-gray-700'}`}
+                      style={{ width: `${Math.min(itemRate, 100)}%` }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
-          ))}
+            )
+          })}
         </div>
       </section>
 

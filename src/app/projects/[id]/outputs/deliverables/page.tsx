@@ -194,6 +194,8 @@ export default function DeliverablesPage() {
   const [items, setItems] = useState<Deliverable[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+  const [syncNote, setSyncNote] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const lastFetchedAt = useRef<number | null>(null)
 
@@ -574,6 +576,26 @@ export default function DeliverablesPage() {
           </button>
           <button
             type="button"
+            onClick={async () => {
+              setSyncing(true)
+              setSyncNote(null)
+              try {
+                const res = await fetch(`/api/projects/${projectId}/deliverables/sync`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+                const json = await res.json()
+                if (json.note) setSyncNote(json.note)
+                await fetchData(true)
+              } finally {
+                setSyncing(false)
+              }
+            }}
+            disabled={syncing || items.length === 0}
+            className="theme-panel theme-body theme-hover-surface flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-sm transition-colors disabled:opacity-40"
+          >
+            {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            지표 동기화
+          </button>
+          <button
+            type="button"
             onClick={openCreate}
             className="flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800"
           >
@@ -582,6 +604,12 @@ export default function DeliverablesPage() {
           </button>
         </div>
       </div>
+
+      {syncNote && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-700">
+          {syncNote}
+        </div>
+      )}
 
       {!loading && items.length > 0 && (
         <section className="grid gap-4 md:grid-cols-3">

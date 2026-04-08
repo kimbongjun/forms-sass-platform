@@ -20,11 +20,17 @@ function normalizeItem(item: ProjectBudgetItem): ProjectBudgetItem {
       : Math.max(0, Number(item.max_amount))
   const weight = Math.max(0, Number(item.weight) || 0)
 
+  const actualAmount =
+    item.actual_amount == null || Number.isNaN(Number(item.actual_amount))
+      ? null
+      : Math.max(0, Number(item.actual_amount))
+
   return {
     id: item.id,
     name: item.name.trim() || '항목',
     type: item.type,
     amount,
+    actual_amount: actualAmount,
     min_amount: minAmount,
     max_amount: maxAmount,
     weight,

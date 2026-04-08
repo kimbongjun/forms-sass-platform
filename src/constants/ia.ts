@@ -1,5 +1,5 @@
 export interface WorkspaceHub {
-  key: 'dashboard' | 'projects'
+  key: 'dashboard' | 'projects' | 'blueberry'
   href: string
   label: string
   description: string
@@ -29,7 +29,13 @@ export const WORKSPACE_HUBS: WorkspaceHub[] = [
     href: '/projects',
     label: 'Projects',
     description: '핵심 워크스페이스',
-  }
+  },
+  {
+    key: 'blueberry',
+    href: '/blueberry',
+    label: '블루베리',
+    description: '키워드 검색 인사이트',
+  },
 ]
 
 export const PROJECT_NAV_GROUPS: ProjectNavGroup[] = [

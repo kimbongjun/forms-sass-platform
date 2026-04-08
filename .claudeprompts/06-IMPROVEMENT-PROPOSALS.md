@@ -1,165 +1,88 @@
 # 기능 개선 제안 (Functional Improvement Proposals)
 
-> 작성일: 2026-04-07  
+> 최초 작성: 2026-04-07  
+> 구현 완료: 2026-04-07  
 > 분석 대상: `src/app`, `src/components`, `src/app/api` 전체 구조
 
 ---
 
-## 1. 미구현 Stub 페이지 — 실제 기능 구현 필요
+## 구현 완료 항목 ✅
 
-IA 경로와 레이아웃은 확보되어 있으나 내부 기능이 전무한 placeholder 페이지.
-
-| 경로 | 페이지명 | 현재 상태 |
+| # | 항목 | 구현 내용 |
 |---|---|---|
-| `/engagement/leads` | 통합 리드 DB | 설명 텍스트만, 데이터 없음 |
-| `/engagement/templates` | 템플릿 라이브러리 | 설명 텍스트만, 데이터 없음 |
-| `/shared/reports` | 리포트 공유 관리 | 설명 텍스트만, 기능 없음 |
-| `/shared/feedback` | 피드백 관리 | 설명 텍스트만, 기능 없음 |
-
-**제안 우선순위**
-- `engagement/leads`: 폼 응답 데이터를 리드로 승격하는 기능부터 구현 (submissions 테이블 연결)
-- `engagement/templates`: 기존 폼을 템플릿으로 저장하고 새 프로젝트 위자드와 연결
-- `shared/reports`: 인사이트 페이지 데이터를 PDF/링크 형태로 외부 공유
-- `shared/feedback`: 리포트 수신자가 코멘트를 남기는 간단한 댓글 구조
-
----
-
-## 2. Insights — Goals KPI 목표 대비 달성률 미연결
-
-**현재 문제**  
-`/projects/[id]/goals`에서 목표 KPI(지표명, 목표값, 단위)를 입력할 수 있으나,  
-`/projects/[id]/insights`의 실제 지표(조회수·인게이지먼트 등)와 **비교 연결이 없음**.  
-CLAUDE.md 와이어프레임에 명시된 "목표 달성률 시각화"가 미구현 상태.
-
-**제안**
-- Insights 페이지 상단에 "목표 대비 달성률" 섹션 추가
-- `project_goal_plans.items` 에서 목표값 로드 → deliverables 실적과 매핑
-- 달성률 진행 바 또는 게이지 차트로 시각화
+| 1 | **프로젝트 목록 검색·필터** | 이미 구현되어 있음 확인 (이름·카테고리·국가·기간·팀원 필터) |
+| 2 | **대시보드 KPI 차트** | `kpi/_components/KpiCharts.tsx` — 월별 응답 수·프로젝트 생성 수 SVG 바 차트 추가 |
+| 3 | **Insights ↔ Goals KPI 달성률 연결** | Insights 페이지에 `project_goal_plans` 로드 → 목표 대비 달성률 진행 바 시각화 |
+| 4 | **마일스톤 UI 연결** | `SchedulePlanner.tsx` 리팩토링 → 마일스톤 CRUD UI + API 연동 |
+| 5 | **예산 실집행 추적** | `ProjectBudgetItem.actual_amount` 필드 추가 · 항목별·전체 집행률 바 표시 |
+| 6 | **개요 진행 상태 요약** | 개요 페이지에 Task 완료율·미해결 이슈·KPI 달성률·예산 집행률 요약 카드 추가 |
+| 7 | **이슈 알림** | issues API POST 시 critical/high 이슈 → project_members(notify=true) Resend 발송 |
+| 8 | **SNS 지표 동기화** | `/api/projects/[id]/deliverables/sync` 엔드포인트 신설 · YouTube Data API 연동 · 산출물 페이지에 "지표 동기화" 버튼 추가 |
+| 9 | **라이브 응답 Realtime** | `LiveFeed.tsx` 클라이언트 컴포넌트 분리 + Supabase Realtime `postgres_changes` 구독 |
+| 10 | **Stub 페이지 구현** | leads(응답 집계), templates(프로젝트 복제), reports(인사이트 링크), feedback(이슈 전체 뷰) |
 
 ---
 
-## 3. 마일스톤 API 존재하지만 UI 미연결
+## SQL 마이그레이션 필요 항목
 
-**현재 문제**  
-`/api/projects/[id]/milestones` API (GET/POST/PUT/DELETE)가 완성되어 있으나  
-`SchedulePlanner` 컴포넌트에서 **마일스톤을 불러오거나 표시하지 않음**.  
-간트 차트에 마일스톤 레이어가 없어 일정 관리의 핵심 기능이 비어 있음.
+아래 항목은 **Supabase SQL Editor에서 직접 실행이 필요**합니다.
 
-**제안**
-- `SchedulePlanner` / `GanttChart`에 마일스톤 데이터 로드 및 렌더링 추가
-- 타임라인 위에 다이아몬드 마커 형태로 표시
-- 마일스톤 추가/편집 UI (이름, 날짜, 담당자)
+### 필수 없음 (기존 JSONB 구조 활용)
 
----
+`project_budget_plans.items`는 JSONB이므로 `actual_amount` 필드는 SQL 변경 없이 TypeScript 타입과 UI만 업데이트했습니다.
 
-## 4. 라이브 응답 허브 — 실시간성 없음
+### 선택적 마이그레이션
 
-**현재 문제**  
-`/projects/[id]/execution/live-responses`는 서버 컴포넌트로 정적 렌더링.  
-"라이브"라는 이름과 달리 페이지 진입 시점의 스냅샷만 표시하며,  
-Supabase Realtime 구독이 **전혀 적용되어 있지 않음**.  
-대시보드 `/dashboard/realtime`도 동일 문제.
-
-**제안**
-- 클라이언트 컴포넌트로 전환 + `supabase.channel()` Realtime 구독 추가
-- `submissions` INSERT 이벤트 감지 → 피드 자동 갱신
-- "현재 접속 중 / 최근 N초 내 응답" 등 라이브 지표 표시
+아래는 기능 확장을 위해 추후 적용을 권장하는 마이그레이션입니다.
 
 ---
 
-## 5. 산출물(Deliverables) — SNS 실지표 자동 갱신 미구현
+#### 마이그레이션 23: `project_issues` 담당자 필드 추가 (이슈 알림 고도화용)
 
-**현재 문제**  
-Insights 페이지 클라이언트에서 `setInterval(1시간)`으로 API를 재호출하지만,  
-`/api/projects/[id]/deliverables`는 **DB 저장값을 그대로 반환**할 뿐  
-실제 Instagram/YouTube API를 호출해 지표를 갱신하는 로직이 없음.  
-즉, 수동 "새로고침"을 눌러도 DB의 오래된 값만 표시됨.
+현재는 `project_members(notify=true)` 전원에게 알림을 발송합니다.  
+특정 담당자에게만 알림을 보내려면 아래 컬럼을 추가하세요.
 
-**제안**
-- Deliverables API에 `sync=true` 파라미터 추가 또는 전용 `/sync` 라우트 신설
-- 플랫폼별 공개 API (YouTube Data API v3, Instagram Basic Display API) 호출 후 DB 업데이트
-- Supabase Edge Function 또는 Vercel Cron으로 1시간 주기 자동 동기화
-
----
-
-## 6. 프로젝트 목록 — 검색·필터 없음
-
-**현재 문제**  
-`/projects` 목록 페이지에 검색창, 카테고리 필터, 상태 필터가 없음.  
-프로젝트가 증가하면 찾기 어려움.
-
-**제안**
-- 클라이언트 사이드 텍스트 검색 (프로젝트명)
-- 카테고리 / 공개·비공개 상태 / 날짜 범위 필터
-- 정렬 옵션 (최신순 / 이름순 / 시작일순)
+```sql
+-- 마이그레이션 23: 이슈 담당자 필드 추가
+ALTER TABLE project_issues
+  ADD COLUMN IF NOT EXISTS assignee_name text,
+  ADD COLUMN IF NOT EXISTS assignee_email text;
+```
 
 ---
 
-## 7. 프로젝트 개요 — 진행 상태 요약 없음
+#### 마이그레이션 24: YouTube 지표 메모 필드 (산출물 동기화 로그)
 
-**현재 문제**  
-개요(`/projects/[id]`) 페이지에 팀 구성·행사장 정보만 있고  
-다른 탭의 데이터가 **집약되지 않음**.
+현재 `project_deliverables`에는 동기화 오류 로그 필드가 없습니다.  
+동기화 실패 원인을 추적하려면 추가하세요.
 
-**제안**  
-개요 하단 또는 요약 카드에 아래 항목 추가:
-- 일정 진행률: 완료 Task 수 / 전체 Task 수
-- 예산 소진율: 집행 예산 / 총 예산 (예산 탭 연결)
-- KPI 달성률: Goals 탭과 연결
-- 이슈 현황: 미해결 이슈 수
-
----
-
-## 8. 예산 — 실집행 금액 추적 없음
-
-**현재 문제**  
-`BudgetPlanner`는 **계획 예산**(항목별 예정 금액)만 관리.  
-실제 집행된 금액을 입력하거나 집행률을 추적하는 기능이 없음.
-
-**제안**
-- 예산 항목에 "집행 금액" 컬럼 추가
-- 계획 대비 집행률 바 표시
-- 예산 초과 항목 경고 표시
+```sql
+-- 마이그레이션 24: 산출물 동기화 상태 필드
+ALTER TABLE project_deliverables
+  ADD COLUMN IF NOT EXISTS sync_status text DEFAULT 'pending',
+  ADD COLUMN IF NOT EXISTS sync_error text;
+-- sync_status: 'pending' | 'synced' | 'failed' | 'skipped'
+```
 
 ---
 
-## 9. 이슈 트래커 — 담당자 알림 없음
+#### 환경변수 추가 필요 (SQL 아님)
 
-**현재 문제**  
-이슈 등록·업데이트 시 담당자에게 **아무런 알림이 없음**.  
-이슈가 어사인되어도 당사자가 인지하기 어려움.
+SNS 지표 자동 동기화를 위해 `.env.local`에 아래 변수 추가:
 
-**제안**
-- 이슈 생성/상태변경 시 담당자 이메일 알림 (Resend 기존 연동 활용)
-- 또는 인앱 노티피케이션 테이블 추가
+```
+# YouTube Data API v3 (Google Cloud Console에서 발급)
+YOUTUBE_API_KEY=AIza...
 
----
+# Instagram Graph API (Meta Business Suite에서 발급, 추후 구현)
+# INSTAGRAM_ACCESS_TOKEN=EAAB...
+```
 
-## 10. 대시보드 KPI / 카테고리 — 시각화 차트 없음
-
-**현재 문제**  
-`/dashboard/kpi`는 숫자 4개만 표시.  
-`/dashboard/category`는 텍스트 바 차트 수준.  
-트렌드 추이(시간별 응답량 변화 등) 시각화 없음.
-
-**제안**
-- KPI 페이지: 월별 응답량 추이 라인 차트 (Recharts 또는 내장 SVG)
-- 카테고리 페이지: 파이 차트 또는 컬러 바 차트로 업그레이드
-- 실시간 보드: Supabase Realtime 연결로 자동 갱신
+YouTube API 없이도 수동으로 지표를 입력하는 기존 기능은 정상 동작합니다.
 
 ---
 
-## 우선순위 요약
+## 우선순위 요약 (구현 전 기준)
 
-| 우선순위 | 항목 | 난이도 | 임팩트 |
-|:---:|---|:---:|:---:|
-| ⭐⭐⭐ | Insights ↔ Goals KPI 연결 (#2) | 중 | 높음 |
-| ⭐⭐⭐ | 마일스톤 UI 연결 (#3) | 중 | 높음 |
-| ⭐⭐⭐ | 산출물 SNS 실지표 자동 갱신 (#5) | 높음 | 높음 |
-| ⭐⭐ | 프로젝트 목록 검색·필터 (#6) | 낮음 | 중간 |
-| ⭐⭐ | 개요 진행 상태 요약 (#7) | 중 | 중간 |
-| ⭐⭐ | 예산 실집행 추적 (#8) | 중 | 중간 |
-| ⭐ | 라이브 응답 Realtime 적용 (#4) | 중 | 중간 |
-| ⭐ | 이슈 트래커 알림 (#9) | 낮음 | 낮음 |
-| ⭐ | Stub 페이지 구현 (#1) | 높음 | 낮음 |
-| ⭐ | 대시보드 차트 시각화 (#10) | 중 | 낮음 |
+| 우선순위 | 항목 | 상태 |
+|:---:|---|:---:|

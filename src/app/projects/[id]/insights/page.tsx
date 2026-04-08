@@ -11,9 +11,11 @@ import {
   Newspaper,
   RefreshCw,
   Share2,
+  Target,
   TrendingUp,
 } from 'lucide-react'
 import { HeaderSkeleton, SectionSkeleton, SkeletonBlock, StatCardSkeleton } from '@/components/common/LoadingSkeleton'
+import type { ProjectGoalItem } from '@/types/database'
 
 type Platform = 'instagram' | 'youtube' | 'tiktok' | 'facebook' | 'twitter' | 'other'
 
@@ -78,10 +80,23 @@ function formatSyncTime(d: string | null) {
   return new Intl.DateTimeFormat('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(d))
 }
 
+function parseNumeric(value: string): number | null {
+  const n = Number(value.replace(/,/g, '').trim())
+  return Number.isFinite(n) ? n : null
+}
+
+function calcAchievementRate(target: string, actual: string): number | null {
+  const t = parseNumeric(target)
+  const a = parseNumeric(actual)
+  if (t == null || a == null || t === 0) return null
+  return Math.round((a / t) * 100)
+}
+
 export default function InsightsPage() {
   const { id: projectId } = useParams<{ id: string }>()
   const [deliverables, setDeliverables] = useState<Deliverable[]>([])
   const [clippings, setClippings] = useState<Clipping[]>([])
+  const [goals, setGoals] = useState<ProjectGoalItem[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -94,14 +109,16 @@ export default function InsightsPage() {
     else setLoading(true)
     setError(null)
     try {
-      const [dRes, cRes] = await Promise.all([
+      const [dRes, cRes, gRes] = await Promise.all([
         fetch(`/api/projects/${projectId}/deliverables`),
         fetch(`/api/projects/${projectId}/clippings`),
+        fetch(`/api/projects/${projectId}/goals`),
       ])
       if (!dRes.ok || !cRes.ok) throw new Error('데이터를 불러오지 못했습니다.')
-      const [d, c] = await Promise.all([dRes.json(), cRes.json()])
+      const [d, c, g] = await Promise.all([dRes.json(), cRes.json(), gRes.json()])
       setDeliverables(d)
       setClippings(c)
+      setGoals(Array.isArray(g?.plan?.items) ? g.plan.items : [])
       lastFetchedAt.current = Date.now()
     } catch (e) {
       setError(e instanceof Error ? e.message : '오류가 발생했습니다.')
@@ -329,6 +346,68 @@ export default function InsightsPage() {
                   </li>
                 ))}
               </ol>
+            </div>
+          )}
+
+          {/* KPI 목표 달성률 */}
+          {goals.filter((g) => g.target && g.actual).length > 0 && (
+            <div className="theme-panel rounded-2xl border p-6 shadow-sm">
+              <div className="mb-4 flex items-center gap-2">
+                <Target className="theme-subtle h-4 w-4" />
+                <h3 className="theme-title text-sm font-semibold">KPI 목표 달성률</h3>
+                <span className="theme-badge-neutral ml-auto rounded-full px-2.5 py-0.5 text-xs font-semibold">
+                  {goals.filter((g) => g.target && g.actual).length}개 지표
+                </span>
+              </div>
+              <div className="space-y-4">
+                {goals
+                  .filter((g) => g.target)
+                  .map((goal) => {
+                    const rate = calcAchievementRate(goal.target, goal.actual)
+                    const hasActual = goal.actual.trim() !== ''
+                    return (
+                      <div key={goal.id}>
+                        <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="theme-title text-sm font-medium">{goal.item}</span>
+                            {goal.metric && (
+                              <span className="theme-subtle text-xs">{goal.metric}</span>
+                            )}
+                            {goal.weight_percent > 0 && (
+                              <span className="theme-badge-neutral rounded-full px-2 py-0.5 text-xs">
+                                가중치 {goal.weight_percent}%
+                              </span>
+                            )}
+                          </div>
+                          <div className="theme-muted flex items-center gap-3 text-xs">
+                            <span>목표 <strong className="theme-body">{goal.target}{goal.unit && ` ${goal.unit}`}</strong></span>
+                            {hasActual && (
+                              <span>실적 <strong className={rate !== null && rate >= 100 ? 'text-emerald-600' : 'text-amber-600'}>{goal.actual}{goal.unit && ` ${goal.unit}`}</strong></span>
+                            )}
+                            {rate !== null && (
+                              <span className={`font-bold ${rate >= 100 ? 'text-emerald-600' : rate >= 70 ? 'text-amber-600' : 'text-red-500'}`}>
+                                {rate}%
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="theme-progress-track h-2 w-full overflow-hidden rounded-full">
+                          {hasActual && rate !== null ? (
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${rate >= 100 ? 'bg-emerald-500' : rate >= 70 ? 'bg-amber-400' : 'bg-red-400'}`}
+                              style={{ width: `${Math.min(rate, 100)}%` }}
+                            />
+                          ) : (
+                            <div className="h-full w-0 rounded-full bg-gray-300" />
+                          )}
+                        </div>
+                        {!hasActual && (
+                          <p className="theme-subtle mt-1 text-xs">실적 미입력 — Goals 탭에서 실적을 입력하세요.</p>
+                        )}
+                      </div>
+                    )
+                  })}
+              </div>
             </div>
           )}
 

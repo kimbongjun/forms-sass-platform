@@ -1,13 +1,15 @@
 import { createServerClient } from '@/utils/supabase/server'
 import WorkspacePage from '@/components/workspace/WorkspacePage'
+import KpiCharts from './_components/KpiCharts'
 
 export default async function DashboardKpiPage() {
   const supabase = await createServerClient()
 
   const { data: rootProjects } = await supabase
     .from('projects')
-    .select('id')
+    .select('id, created_at')
     .is('workspace_project_id', null)
+    .order('created_at', { ascending: true })
 
   const rootProjectIds = (rootProjects ?? []).map((project) => project.id)
   const { data: formProjects } = rootProjectIds.length > 0
@@ -24,6 +26,7 @@ export default async function DashboardKpiPage() {
     { count: publishedProjects },
     { count: totalFields },
     { count: totalSubmissions },
+    { data: submissions },
   ] = await Promise.all([
     supabase.from('projects').select('*', { count: 'exact', head: true }).is('workspace_project_id', null),
     supabase.from('projects').select('*', { count: 'exact', head: true }).is('workspace_project_id', null).eq('is_published', true),
@@ -33,6 +36,15 @@ export default async function DashboardKpiPage() {
     metricProjectIds.length > 0
       ? supabase.from('submissions').select('*', { count: 'exact', head: true }).in('project_id', metricProjectIds)
       : Promise.resolve({ count: 0 }),
+    // 최근 6개월 응답 데이터
+    metricProjectIds.length > 0
+      ? supabase
+          .from('submissions')
+          .select('created_at')
+          .in('project_id', metricProjectIds)
+          .gte('created_at', new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString())
+          .order('created_at', { ascending: true })
+      : Promise.resolve({ data: [] as { created_at: string }[] }),
   ])
 
   const projectCount = totalProjects ?? 0
@@ -43,11 +55,44 @@ export default async function DashboardKpiPage() {
   const avgFields = projectCount > 0 ? (fieldCount / projectCount).toFixed(1) : '0.0'
   const avgResponses = projectCount > 0 ? (submissionCount / projectCount).toFixed(1) : '0.0'
 
+  // 월별 응답 수 집계 (최근 6개월)
+  const monthlyMap: Record<string, number> = {}
+  for (const sub of submissions ?? []) {
+    const d = new Date(sub.created_at)
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    monthlyMap[key] = (monthlyMap[key] ?? 0) + 1
+  }
+
+  // 최근 6개월 키 목록 생성
+  const monthlyData: { month: string; label: string; count: number }[] = []
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date()
+    d.setMonth(d.getMonth() - i)
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    monthlyData.push({
+      month: key,
+      label: new Intl.DateTimeFormat('ko-KR', { month: 'short' }).format(d),
+      count: monthlyMap[key] ?? 0,
+    })
+  }
+
+  // 월별 프로젝트 생성 수
+  const projectMonthlyMap: Record<string, number> = {}
+  for (const p of rootProjects ?? []) {
+    const d = new Date(p.created_at)
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    projectMonthlyMap[key] = (projectMonthlyMap[key] ?? 0) + 1
+  }
+  const projectMonthlyData = monthlyData.map((m) => ({
+    ...m,
+    projectCount: projectMonthlyMap[m.month] ?? 0,
+  }))
+
   return (
     <WorkspacePage
       eyebrow="Dashboard / KPI"
       title="KPI 현황"
-      description="현재 스키마에서 바로 측정 가능한 운영 KPI를 기준으로 대시보드 허브를 구성했습니다. 프로젝트 수, 공개율, 필드 밀도, 응답량을 빠르게 읽을 수 있습니다."
+      description="현재 운영 중인 전체 프로젝트의 핵심 지표를 한눈에 확인합니다."
       actions={[
         { href: '/projects', label: '프로젝트 열기' },
         { href: '/dashboard/realtime', label: '실시간 보드', variant: 'secondary' },
@@ -59,26 +104,7 @@ export default async function DashboardKpiPage() {
         { label: 'Avg. Responses', value: avgResponses, helper: '프로젝트당 평균 응답 수' },
       ]}
     >
-      <section className="grid gap-4 lg:grid-cols-3">
-        <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-          <p className="text-sm font-semibold text-gray-900">운영 관점</p>
-          <p className="mt-3 text-sm leading-6 text-gray-500">
-            신규 프로젝트 생성은 `/projects/new`로 모으고, KPI 화면은 전체 운영량을 읽는 허브로 분리했습니다.
-          </p>
-        </div>
-        <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-          <p className="text-sm font-semibold text-gray-900">폼 관점</p>
-          <p className="mt-3 text-sm leading-6 text-gray-500">
-            누적 필드 수와 프로젝트당 평균 필드 수를 통해 폼 구조의 복잡도를 빠르게 파악할 수 있습니다.
-          </p>
-        </div>
-        <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-          <p className="text-sm font-semibold text-gray-900">응답 관점</p>
-          <p className="mt-3 text-sm leading-6 text-gray-500">
-            실시간 응답 흐름은 별도 보드로 분리하고, KPI 페이지는 전체 응답량을 요약해서 보여줍니다.
-          </p>
-        </div>
-      </section>
+      <KpiCharts monthlyData={projectMonthlyData} />
     </WorkspacePage>
   )
 }

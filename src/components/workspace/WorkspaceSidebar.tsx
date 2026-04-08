@@ -6,6 +6,7 @@ import {
   BarChart3,
   Bell,
   FolderKanban,
+  Grape,
   LayoutDashboard,
   Megaphone,
   Settings,
@@ -20,6 +21,7 @@ const HUB_ICONS = {
   projects: FolderKanban,
   engagement: BarChart3,
   shared: Share2,
+  blueberry: Grape,
 }
 
 const ADMIN_LINKS = [

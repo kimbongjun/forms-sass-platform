@@ -77,6 +77,7 @@ export interface ProjectBudgetItem {
   name: string
   type: 'media' | 'production' | 'operation' | 'staff' | 'venue' | 'etc'
   amount: number
+  actual_amount: number | null
   min_amount: number | null
   max_amount: number | null
   weight: number
