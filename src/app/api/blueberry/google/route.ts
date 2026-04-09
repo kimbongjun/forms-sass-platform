@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const startTime = new Date()
-    startTime.setFullYear(startTime.getFullYear() - 1)
+    startTime.setFullYear(startTime.getFullYear() - 5) // 최대 5년
 
     const [trendRes, relatedRes] = await Promise.allSettled([
       googleTrends.interestOverTime({
