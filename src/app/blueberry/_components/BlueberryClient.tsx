@@ -6,6 +6,7 @@ import {
   Download, Monitor, Smartphone, Calendar, Plus, X, Info, Wifi, WifiOff, Copy, Check,
 } from 'lucide-react'
 import { DateRangePickerInput } from '@/components/common/DatePickerInput'
+import DatalabForm from './DatalabForm'
 
 // ── Naver API 응답 타입 (route.ts 와 동기화) ────────────────────
 interface NaverApiData {
@@ -397,8 +398,8 @@ function MultiLineChart({ series, labels }: { series: ChartSeries[]; labels: str
         onMouseLeave={() => setTooltip(null)}
       >
         <defs>
-          {series.map((s) => {
-            const id = `lg-${s.color.replace('#', '')}`
+          {series.map((s, si) => {
+            const id = `lg-${s.color.replace('#', '')}-${si}`
             return (
               <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor={s.color} stopOpacity="0.18" />
@@ -417,16 +418,16 @@ function MultiLineChart({ series, labels }: { series: ChartSeries[]; labels: str
           />
         )}
 
-        {series.map((s) => {
+        {series.map((s, si) => {
           const pts = s.data.map((v, i) => ({ x: ptX(i), y: ptY(v) }))
           const pathD = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
           const areaD =
             `M${pts[0].x.toFixed(1)},${H - pad.b} ` +
             pts.map((p) => `L${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ') +
             ` L${pts.at(-1)!.x.toFixed(1)},${H - pad.b} Z`
-          const gradId = `lg-${s.color.replace('#', '')}`
+          const gradId = `lg-${s.color.replace('#', '')}-${si}`
           return (
-            <g key={s.keyword}>
+            <g key={`${s.keyword}-${si}`}>
               <path d={areaD} fill={`url(#${gradId})`} />
               <path d={pathD} fill="none" stroke={s.color} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
               {pts.map((p, i) => (
@@ -695,7 +696,7 @@ export default function BlueberryClient() {
       <div className="flex items-start justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400 flex items-center gap-1.5">
-            <Grape className="h-3.5 w-3.5 text-violet-500" />
+            <Grape className="h-3.5 w-3.5 text-[#1a3f7e]" />
             블루베리 / 키워드 인사이트
           </p>
           <h1 className="mt-1 text-2xl font-semibold text-gray-900">키워드 분석</h1>
@@ -751,11 +752,11 @@ export default function BlueberryClient() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             placeholder="분석할 키워드를 입력하세요 (예: 슈링크, 피부과, 클래시스)"
-            className="w-full rounded-2xl border border-gray-200 bg-white py-3.5 pl-11 pr-4 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
+            className="w-full rounded-2xl border border-gray-200 bg-white py-3.5 pl-11 pr-4 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-[#1a3f7e] focus:outline-none focus:ring-2 focus:ring-[#e8eef7]"
           />
         </div>
         <button type="button" onClick={handleSearch} disabled={!input.trim()}
-          className="rounded-2xl bg-violet-600 px-6 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-violet-700 disabled:opacity-50 transition-colors">
+          className="rounded-2xl bg-[#1a3f7e] px-6 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-[#132d5c] disabled:opacity-50 transition-colors">
           분석하기
         </button>
       </div>
@@ -818,8 +819,8 @@ export default function BlueberryClient() {
             {/* 검색량 */}
             <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
               <div className="flex items-start justify-between gap-2">
-                <div className="inline-flex rounded-xl p-2 bg-violet-50 shrink-0">
-                  <TrendingUp className="h-4 w-4 text-violet-600" />
+                <div className="inline-flex rounded-xl p-2 bg-[#e8eef7] shrink-0">
+                  <TrendingUp className="h-4 w-4 text-[#1a3f7e]" />
                 </div>
                 <span className={[
                   'flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium',
@@ -933,8 +934,8 @@ export default function BlueberryClient() {
           </div>
 
           {/* 키워드 비교 패널 */}
-          <div className="rounded-2xl border border-violet-200 bg-violet-50/40 p-5">
-            <p className="mb-3 text-sm font-semibold text-violet-800">키워드 비교 분석</p>
+          <div className="rounded-2xl border border-[#b3c2dc] bg-[#e8eef7]/40 p-5">
+            <p className="mb-3 text-sm font-semibold text-[#0d1f40]">키워드 비교 분석</p>
             <div className="flex flex-wrap items-center gap-2">
               {/* 주요 키워드 칩 */}
               <span
@@ -970,17 +971,17 @@ export default function BlueberryClient() {
                     onChange={(e) => setCompareInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleAddCompare()}
                     placeholder="비교 키워드 입력"
-                    className="w-32 rounded-xl border border-violet-200 bg-white px-3 py-1.5 text-xs text-gray-700 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none"
+                    className="w-32 rounded-xl border border-[#b3c2dc] bg-white px-3 py-1.5 text-xs text-gray-700 placeholder:text-gray-400 focus:border-[#1a3f7e] focus:outline-none"
                   />
                   <button type="button" onClick={handleAddCompare} disabled={!compareInput.trim()}
-                    className="flex items-center gap-1 rounded-xl bg-violet-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-violet-700 disabled:opacity-40 transition-colors">
+                    className="flex items-center gap-1 rounded-xl bg-[#1a3f7e] px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-[#132d5c] disabled:opacity-40 transition-colors">
                     <Plus className="h-3.5 w-3.5" />
                     추가
                   </button>
                 </div>
               )}
             </div>
-            <p className="mt-2 text-[11px] text-violet-500">
+            <p className="mt-2 text-[11px] text-[#1a3f7e]">
               검색량 추이·콘텐츠 발행량 차트에서만 비교됩니다. 최대 4개까지 추가할 수 있습니다.
             </p>
           </div>
@@ -1176,7 +1177,7 @@ export default function BlueberryClient() {
         </div>
       ) : (
         <div className="rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/50 py-20 text-center">
-          <Grape className="mx-auto mb-4 h-12 w-12 text-violet-300" />
+          <Grape className="mx-auto mb-4 h-12 w-12 text-[#6b8cc4]" />
           <p className="text-base font-semibold text-gray-400">키워드를 입력해 분석을 시작하세요</p>
           <p className="mt-2 text-sm text-gray-400">
             Naver · Google 기준 검색량, 콘텐츠 발행량, 플랫폼 언급량을 확인할 수 있습니다.
@@ -1185,13 +1186,17 @@ export default function BlueberryClient() {
             {['슈링크', '피부과', '클래시스', '볼뉴머', '홈뷰티'].map((k) => (
               <button key={k} type="button"
                 onClick={() => { setInput(k); startTransition(() => setKeyword(k)) }}
-                className="rounded-full border border-gray-200 bg-white px-4 py-1.5 text-sm text-gray-600 shadow-sm hover:border-violet-300 hover:text-violet-700 transition-colors">
+                className="rounded-full border border-gray-200 bg-white px-4 py-1.5 text-sm text-gray-600 shadow-sm hover:border-[#8aa3cc] hover:text-[#132d5c] transition-colors">
                 {k}
               </button>
             ))}
           </div>
         </div>
       )}
+
+      {/* 검색어 트렌드 — Naver Datalab */}
+      <DatalabForm />
+
     </div>
   )
 }
