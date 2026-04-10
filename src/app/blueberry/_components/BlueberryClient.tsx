@@ -1477,7 +1477,7 @@ export default function BlueberryClient() {
     <div className="mx-auto max-w-5xl px-6 py-8 space-y-8">
 
       {/* 헤더 */}
-      <div className="flex items-start justify-between">
+      <div className="grid md:grid-cols-2 justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400 flex items-center gap-1.5">
             <Grape className="h-3.5 w-3.5 text-[#1a3f7e]" />
@@ -1544,7 +1544,7 @@ export default function BlueberryClient() {
           </div>
         </div>
         {keyword && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 my-2 justify-end">
             <button type="button" onClick={handleToggleSave}
               title={savedKeywords.includes(keyword) ? '저장 해제' : '키워드 저장'}
               className={[
@@ -1925,7 +1925,7 @@ export default function BlueberryClient() {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid md:grid-cols-2 gap-4">
             {/* 콘텐츠 발행량 */}
             <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
               <div className="mb-4 flex flex-wrap items-start justify-between gap-2">

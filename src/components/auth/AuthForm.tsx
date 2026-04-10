@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2, Eye, EyeOff } from 'lucide-react'
+import { Loader2, Eye, EyeOff, Mail, CheckCircle2 } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 
 const ALLOWED_DOMAIN = 'classys.com'
@@ -26,6 +26,10 @@ export default function AuthForm() {
   const [agreedPrivacy, setAgreedPrivacy] = useState(false)
   const [agreedTerms, setAgreedTerms] = useState(false)
   const [agreedService, setAgreedService] = useState(false)
+  const [signupDone, setSignupDone] = useState(false)
+  const [signupEmail, setSignupEmail] = useState('')
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendMessage, setResendMessage] = useState('')
 
   const email = username.trim() ? `${username.trim()}@${ALLOWED_DOMAIN}` : ''
 
@@ -49,6 +53,19 @@ export default function AuthForm() {
     setAgreedPrivacy(false)
     setAgreedTerms(false)
     setAgreedService(false)
+  }
+
+  async function handleResend() {
+    setResendLoading(true)
+    setResendMessage('')
+    const supabase = createClient()
+    const { error: err } = await supabase.auth.resend({
+      type: 'signup',
+      email: signupEmail,
+      options: { emailRedirectTo: `${location.origin}/auth/callback` },
+    })
+    setResendLoading(false)
+    setResendMessage(err ? '재발송에 실패했습니다. 잠시 후 다시 시도해주세요.' : '인증 이메일을 재발송했습니다.')
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -92,7 +109,8 @@ export default function AuthForm() {
           },
         })
         if (err) throw err
-        setMessage(`${email} 으로 가입 확인 이메일을 발송했습니다. 이메일을 확인해주세요.`)
+        setSignupEmail(email)
+        setSignupDone(true)
         resetForm()
       }
     } catch (err) {
@@ -103,6 +121,61 @@ export default function AuthForm() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // ── 이메일 인증 안내 화면 ─────────────────────────────────────────
+  if (signupDone) {
+    return (
+      <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="p-8 text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-50">
+            <Mail className="h-8 w-8 text-blue-600" />
+          </div>
+          <h2 className="mb-2 text-lg font-bold text-gray-900">이메일 인증을 완료해주세요</h2>
+          <p className="mb-1 text-sm text-gray-500">아래 주소로 인증 링크를 발송했습니다.</p>
+          <p className="mb-6 text-sm font-semibold text-gray-800">{signupEmail}</p>
+
+          <div className="mb-6 rounded-xl border border-blue-100 bg-blue-50 p-4 text-left space-y-2">
+            <div className="flex items-start gap-2.5">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
+              <p className="text-xs text-blue-700">이메일 받은편지함을 확인해주세요. 스팸 폴더도 확인해보세요.</p>
+            </div>
+            <div className="flex items-start gap-2.5">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
+              <p className="text-xs text-blue-700">이메일의 <strong>인증하기</strong> 버튼을 클릭하면 가입이 완료됩니다.</p>
+            </div>
+            <div className="flex items-start gap-2.5">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
+              <p className="text-xs text-blue-700">인증 링크는 24시간 동안 유효합니다.</p>
+            </div>
+          </div>
+
+          {resendMessage && (
+            <p className={`mb-4 rounded-lg px-4 py-2.5 text-sm ${resendMessage.includes('실패') ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'}`}>
+              {resendMessage}
+            </p>
+          )}
+
+          <button
+            type="button"
+            onClick={handleResend}
+            disabled={resendLoading}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
+          >
+            {resendLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+            {resendLoading ? '발송 중...' : '인증 이메일 재발송'}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => { setSignupDone(false); setTab('login'); setResendMessage('') }}
+            className="mt-3 w-full text-sm text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            로그인으로 돌아가기
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -241,9 +314,6 @@ export default function AuthForm() {
 
         {error && (
           <p className="rounded-lg bg-red-50 px-4 py-2.5 text-sm text-red-600">{error}</p>
-        )}
-        {message && (
-          <p className="rounded-lg bg-green-50 px-4 py-2.5 text-sm text-green-700">{message}</p>
         )}
 
         <button
