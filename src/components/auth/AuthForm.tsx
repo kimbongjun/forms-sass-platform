@@ -245,7 +245,9 @@ export default function AuthForm() {
               @{ALLOWED_DOMAIN}
             </span>
           </div>
-          <small className="block mt-2 text-center text-gray-400 text-xs">가입 완료를 위해 이메일 인증이 필요합니다.</small>
+          {tab === 'signup' && (
+            <p className="mt-1.5 text-xs text-gray-400">가입 완료를 위해 이메일 인증이 필요합니다.</p>
+          )}
         </div>
 
         {/* 비밀번호 */}
