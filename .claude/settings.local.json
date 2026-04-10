@@ -22,7 +22,8 @@
       "Bash(grep -rn \"const \\\\[\" /d/workspace/form-saas-platform/src/app/projects/[id]/execution/live-responses/_components/LiveFeed.tsx)",
       "Bash(grep:*)",
       "Bash(cd \"D:\\\\\\\\workspace\\\\\\\\form-saas-platform\")",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(git remote:*)"
     ]
   }
 }
