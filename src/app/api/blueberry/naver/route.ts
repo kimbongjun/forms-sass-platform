@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createHmac } from 'crypto'
-import { createServerClient } from '@/utils/supabase/server'
 
 // ── 서버사이드 1시간 캐시 ────────────────────────────────────────
 const CACHE = new Map<string, { data: NaverKeywordResult; ts: number }>()
@@ -134,10 +133,6 @@ async function fetchSearchTotal(
 
 // ── Route Handler ────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
   const clientId = process.env.NAVER_CLIENT_ID
   const clientSecret = process.env.NAVER_CLIENT_SECRET
   if (!clientId || !clientSecret) {

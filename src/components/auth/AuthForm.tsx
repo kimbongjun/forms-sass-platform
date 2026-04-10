@@ -324,6 +324,24 @@ export default function AuthForm() {
           {loading && <Loader2 className="h-4 w-4 animate-spin" />}
           {loading ? '처리 중...' : tab === 'login' ? '로그인' : '회원가입'}
         </button>
+
+        {tab === 'login' && (
+          <div className="relative flex items-center py-1">
+            <div className="flex-1 border-t border-gray-100" />
+            <span className="px-3 text-xs text-gray-400">또는</span>
+            <div className="flex-1 border-t border-gray-100" />
+          </div>
+        )}
+
+        {tab === 'login' && (
+          <button
+            type="button"
+            onClick={() => router.push('/blueberry')}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white py-3 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-50"
+          >
+            비회원으로 접속
+          </button>
+        )}
       </form>
     </div>
   )

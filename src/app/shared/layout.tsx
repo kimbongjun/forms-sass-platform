@@ -1,5 +1,5 @@
 import WorkspaceShell from '@/components/workspace/WorkspaceShell'
 
 export default function SharedLayout({ children }: { children: React.ReactNode }) {
-  return <WorkspaceShell>{children}</WorkspaceShell>
+  return <WorkspaceShell requireAuth>{children}</WorkspaceShell>
 }

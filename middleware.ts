@@ -33,14 +33,15 @@ export async function middleware(request: NextRequest) {
   const isShared = request.nextUrl.pathname.startsWith('/shared')
   const isAdminApi = request.nextUrl.pathname.startsWith('/api/admin')
   const isLogin = request.nextUrl.pathname === '/login'
+  const isIndex = request.nextUrl.pathname === '/'
 
   if (!user && (isDashboard || isProjects || isEngagement || isShared || isAdminApi)) {
     const url = request.nextUrl.clone()
-    url.pathname = '/login'
+    url.pathname = '/'
     return NextResponse.redirect(url)
   }
 
-  if (user && isLogin) {
+  if (user && (isLogin || isIndex)) {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
     return NextResponse.redirect(url)
@@ -50,5 +51,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/projects/:path*', '/engagement/:path*', '/shared/:path*', '/login', '/api/admin/:path*'],
+  matcher: ['/', '/login', '/dashboard/:path*', '/projects/:path*', '/engagement/:path*', '/shared/:path*', '/api/admin/:path*'],
 }

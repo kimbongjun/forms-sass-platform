@@ -15,5 +15,5 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.redirect(`${origin}/login?error=인증에_실패했습니다`)
+  return NextResponse.redirect(`${origin}/?error=인증에_실패했습니다`)
 }

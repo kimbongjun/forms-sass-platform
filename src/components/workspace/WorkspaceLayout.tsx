@@ -7,6 +7,7 @@ import WorkspaceSidebar from './WorkspaceSidebar'
 interface WorkspaceLayoutProps {
   children: React.ReactNode
   role?: 'administrator' | 'editor'
+  isGuest?: boolean
   header: React.ReactNode
   headerRight?: React.ReactNode
   footer: React.ReactNode
@@ -15,6 +16,7 @@ interface WorkspaceLayoutProps {
 export default function WorkspaceLayout({
   children,
   role,
+  isGuest,
   header,
   headerRight,
   footer,
@@ -65,7 +67,7 @@ export default function WorkspaceLayout({
             </button>
           </div>
           <div className="flex-1 overflow-y-auto">
-            <WorkspaceSidebar role={role} />
+            <WorkspaceSidebar role={role} isGuest={isGuest} />
           </div>
         </div>
 

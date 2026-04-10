@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const googleTrends = require('google-trends-api')
-import { createServerClient } from '@/utils/supabase/server'
 
 // ── 서버사이드 1시간 캐시 ────────────────────────────────────────
 const CACHE = new Map<string, { data: GoogleTrendsResult; ts: number }>()
@@ -17,10 +16,6 @@ export interface GoogleTrendsResult {
 
 // ── Route Handler ────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
   const { keyword } = await req.json() as { keyword?: string }
   if (!keyword?.trim()) {
     return NextResponse.json({ error: 'keyword 파라미터가 필요합니다.' }, { status: 400 })
