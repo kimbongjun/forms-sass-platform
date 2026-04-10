@@ -1,5 +1,5 @@
 export interface WorkspaceHub {
-  key: 'dashboard' | 'projects' | 'blueberry'
+  key: 'dashboard' | 'projects' | 'blueberry' | 'monitoring'
   href: string
   label: string
   description: string
@@ -35,6 +35,12 @@ export const WORKSPACE_HUBS: WorkspaceHub[] = [
     href: '/blueberry',
     label: '블루베리',
     description: '키워드 검색 인사이트',
+  },
+  {
+    key: 'monitoring',
+    href: '/monitoring',
+    label: '모니터링',
+    description: '웹사이트 상태 점검',
   },
 ]
 

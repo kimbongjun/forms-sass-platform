@@ -29,7 +29,13 @@ interface GoogleTrendsData {
 interface DatalabTrendData {
   /** 'YYYY-MM' → ratio (0-100, 기간 내 상대값) */
   monthlyRatios: Record<string, number>
+  /** 기준 키워드 ratio (네이버 전체 검색량 변화 보정용) */
+  refRatios?: Record<string, number>
 }
+
+// DataLab에 함께 조회할 기준 키워드 (안정적인 대용량 검색어)
+// 조건: 월별 절대 검색량이 크고 안정적 → 네이버 전체 검색량 변화를 대리 측정
+const DATALAB_REFERENCE_KEYWORD = '유튜브'
 
 // ── 해시 유틸 ────────────────────────────────────────────────────
 function hashStr(s: string): number {
@@ -45,11 +51,13 @@ function seededRand(seed: number, idx: number): number {
   return x - Math.floor(x)
 }
 
-// ── 동적 월 라벨 (현재 달 기준 최근 N개월) ─────────────────────
+// ── 동적 월 라벨 (전월 기준 최근 N개월) ────────────────────────
+// 가장 최근 월은 항상 전월(완성된 데이터가 있는 마지막 달)
 function getMonthLabels(count: number): { key: string; label: string }[] {
   const result: { key: string; label: string }[] = []
   const now = new Date()
-  for (let i = count - 1; i >= 0; i--) {
+  // i=1 에서 시작하여 당월(i=0)은 제외
+  for (let i = count; i >= 1; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
     result.push({
       key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
@@ -59,7 +67,7 @@ function getMonthLabels(count: number): { key: string; label: string }[] {
   return result
 }
 
-const ALL_MONTHS = getMonthLabels(60) // 최근 5년
+const ALL_MONTHS = getMonthLabels(60) // 최근 5년 (전월까지)
 
 // 키워드 비교 기본 팔레트 (브랜드 색이 없을 때 폴백)
 const KEYWORD_COLORS = ['#8B5CF6', '#10B981', '#3B82F6', '#F59E0B', '#EF4444']
@@ -283,35 +291,85 @@ function resolveGoogleData(
   }
 }
 
+// ── 전월 키 헬퍼 (Ad API 기준 월 = 전월) ─────────────────────────
+function getPrevMonthKey(): string {
+  const now = new Date()
+  const d = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
 // ── DataLab 실측 트렌드 병합 ──────────────────────────────────────
 // DataLab ratio(0-100)를 실제 검색량으로 환산
-// adLastMonth: 검색광고 API 실측 최신 월간 값 (없으면 mock 마지막 값 사용)
+// adLastMonth: 검색광고 API 실측 전월 절대값
+//
+// [핵심 보정 로직]
+// DataLab ratio = (키워드검색수 / 네이버전체검색수) × 정규화
+// 네이버 전체 검색량이 시간에 따라 증가하므로, 단순 ratio 비율은
+// 과거 달을 과대추정함. 기준 키워드(refRatios)를 함께 조회하면
+// 분모(전체 검색수)가 상쇄되어 실제 키워드 검색량 비율에 근접.
+//
+// 보정식:
+//   adjusted_ratio[i] = ratio[i] / refRatios[i]          (네이버 전체량 상쇄)
+//   adjusted_anchor   = anchorRatio / refAnchorRatio
+//   value[i] = (adjusted_ratio[i] / adjusted_anchor) × anchorValue
 function resolveWithDatalab(
   data: KeywordData & { isReal: boolean; hasAdVolume: boolean },
   datalabData: DatalabTrendData,
   adLastMonth: number | null,
 ): KeywordData & { isReal: boolean; hasAdVolume: boolean } {
-  const { monthlyRatios } = datalabData
+  const { monthlyRatios, refRatios } = datalabData
   if (Object.keys(monthlyRatios).length === 0) return data
 
-  const ratios = ALL_MONTHS.map(m => monthlyRatios[m.key] ?? null)
+  const anchorMonthKey = getPrevMonthKey()
 
-  // 마지막 유효 ratio 찾기
-  let lastRatio: number | null = null
-  for (let i = ratios.length - 1; i >= 0; i--) {
-    if (ratios[i] !== null) { lastRatio = ratios[i]; break }
+  // 기준 키워드 ratio로 보정된 normalized ratio 계산
+  // refRatios가 있으면 (키워드ratio / 기준ratio)로 네이버 전체량 변화 상쇄
+  const refAnchor = refRatios?.[anchorMonthKey] ?? null
+  const getNormalizedRatio = (monthKey: string, rawRatio: number): number => {
+    if (!refRatios || refAnchor === null) return rawRatio
+    const refVal = refRatios[monthKey]
+    if (!refVal || refVal === 0) return rawRatio
+    // 보정: (키워드ratio / 기준ratio) 로 분모 상쇄 후 기준 앵커로 재스케일
+    return (rawRatio / refVal) * refAnchor
   }
-  if (!lastRatio) return data
 
-  // 앵커: Ad API 절대값 우선, 없으면 기존 마지막 달 값
+  // 앵커 ratio: 전월 DataLab ratio (기준 키워드 보정 적용)
+  let rawAnchorRatio = monthlyRatios[anchorMonthKey] ?? null
+  if (rawAnchorRatio === null) {
+    // 전월 데이터 없으면 마지막 유효 ratio로 fallback
+    for (let i = ALL_MONTHS.length - 1; i >= 0; i--) {
+      const v = monthlyRatios[ALL_MONTHS[i].key]
+      if (v != null) { rawAnchorRatio = v; break }
+    }
+  }
+  if (!rawAnchorRatio) return data
+
+  // 기준 보정 후 앵커 ratio (보정 전후 동일 — 보정식의 분모·분자 모두 앵커 기준이므로)
+  const anchorRatioNorm = getNormalizedRatio(anchorMonthKey, rawAnchorRatio)
+  if (!anchorRatioNorm) return data
+
+  // 앵커값: Ad API 전월 절대값 우선
   const anchorValue = adLastMonth ?? data.searchVolume[data.searchVolume.length - 1]
 
-  const searchVolume = ratios.map((ratio, i) => {
-    if (ratio === null) return data.searchVolume[i] ?? 0
-    return Math.max(0, Math.round((ratio / lastRatio!) * anchorValue))
+  const searchVolume = ALL_MONTHS.map((m, i) => {
+    const raw = monthlyRatios[m.key]
+    if (raw == null) {
+      // null 구간 선형 보간
+      const prev = ALL_MONTHS.slice(0, i).reverse().find(pm => monthlyRatios[pm.key] != null)
+      const next = ALL_MONTHS.slice(i + 1).find(nm => monthlyRatios[nm.key] != null)
+      const prevNorm = prev ? getNormalizedRatio(prev.key, monthlyRatios[prev.key]!) : null
+      const nextNorm = next ? getNormalizedRatio(next.key, monthlyRatios[next.key]!) : null
+      let interp: number | null = null
+      if (prevNorm !== null && nextNorm !== null) interp = (prevNorm + nextNorm) / 2
+      else if (prevNorm !== null) interp = prevNorm
+      if (interp !== null) return Math.max(0, Math.round((interp / anchorRatioNorm) * anchorValue))
+      return data.searchVolume[i] ?? 0
+    }
+    const norm = getNormalizedRatio(m.key, raw)
+    return Math.max(0, Math.round((norm / anchorRatioNorm) * anchorValue))
   })
 
-  // PC/Mobile 비율은 기존 데이터 유지
+  // PC/Mobile 비율은 Ad API 실측 비율 유지
   const pcRatios = data.searchVolumePC.map((v, i) =>
     data.searchVolume[i] > 0 ? v / data.searchVolume[i] : 0.4
   )
@@ -1015,6 +1073,8 @@ export default function BlueberryClient() {
   // ── Naver DataLab 트렌드 상태 ────────────────────────────────
   const [datalabTrendData, setDatalabTrendData] = useState<DatalabTrendData | null>(null)
   const [datalabLoading, setDatalabLoading] = useState(false)
+  // 비교 키워드별 DataLab 트렌드
+  const [compareDatalabData, setCompareDatalabData] = useState<Record<string, DatalabTrendData | null>>({})
 
   // ── 키워드 저장 ───────────────────────────────────────────────
   const [savedKeywords, setSavedKeywords] = useState<string[]>([])
@@ -1074,33 +1134,48 @@ export default function BlueberryClient() {
   }, [keyword, platform])
 
   // ── Naver DataLab 트렌드 호출 (최근 5년 월별) ──────────────
+  // 기준 키워드(DATALAB_REFERENCE_KEYWORD)를 함께 조회하여
+  // 네이버 전체 검색량 증가에 의한 과거 데이터 과대추정을 보정
   function fetchDatalabTrend(kw: string) {
     setDatalabLoading(true)
     setDatalabTrendData(null)
 
     const now = new Date()
-    const startDate = new Date(now)
-    startDate.setFullYear(startDate.getFullYear() - 5)
+    const lastDayOfPrevMonth = new Date(now.getFullYear(), now.getMonth(), 0)
+    const firstDayOf5yAgo = new Date(now.getFullYear() - 5, now.getMonth(), 1)
+    const startDateStr = `${firstDayOf5yAgo.getFullYear()}-${String(firstDayOf5yAgo.getMonth() + 1).padStart(2, '0')}-01`
+    const endDateStr = lastDayOfPrevMonth.toISOString().slice(0, 10)
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+
+    // 기준 키워드와 함께 한 번에 조회 (DataLab API는 그룹당 ratio를 동일 기준으로 정규화)
+    const isRefKeyword = kw.trim() === DATALAB_REFERENCE_KEYWORD
+    const keywordGroups = isRefKeyword
+      ? [{ groupName: kw, keywords: [kw] }]
+      : [
+          { groupName: kw, keywords: [kw] },
+          { groupName: '__ref__', keywords: [DATALAB_REFERENCE_KEYWORD] },
+        ]
 
     fetch('/api/blueberry/datalab', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        startDate: startDate.toISOString().slice(0, 10),
-        endDate: now.toISOString().slice(0, 10),
-        timeUnit: 'month',
-        keywordGroups: [{ groupName: kw, keywords: [kw] }],
-      }),
+      body: JSON.stringify({ startDate: startDateStr, endDate: endDateStr, timeUnit: 'month', keywordGroups }),
     })
       .then(r => r.json())
       .then((res: { results?: { data: { period: string; ratio: number }[] }[]; error?: string }) => {
         if (res.error) return
-        const points = res.results?.[0]?.data ?? []
-        const monthlyRatios: Record<string, number> = {}
-        for (const pt of points) {
-          monthlyRatios[pt.period.slice(0, 7)] = pt.ratio
+        const parse = (idx: number): Record<string, number> => {
+          const points = res.results?.[idx]?.data ?? []
+          const out: Record<string, number> = {}
+          for (const pt of points) {
+            const monthKey = pt.period.slice(0, 7)
+            if (monthKey !== currentMonthKey) out[monthKey] = pt.ratio
+          }
+          return out
         }
-        setDatalabTrendData({ monthlyRatios })
+        const monthlyRatios = parse(0)
+        const refRatios = !isRefKeyword ? parse(1) : undefined
+        setDatalabTrendData({ monthlyRatios, ...(refRatios && Object.keys(refRatios).length > 0 ? { refRatios } : {}) })
       })
       .catch(() => {})
       .finally(() => setDatalabLoading(false))
@@ -1136,12 +1211,23 @@ export default function BlueberryClient() {
     : googleResolved?.isGoogleReal ?? false
   const hasAdVolume = (naverResolved as (KeywordData & { hasAdVolume?: boolean }) | null)?.hasAdVolume ?? false
 
-  // 비교 포함 전체 시리즈 — 비교 키워드도 실측 API 데이터 적용
+  // 비교 포함 전체 시리즈 — Ad API + DataLab 트렌드 모두 적용
   const allKeywords = keyword ? [keyword, ...compareKeywords] : []
   const allSeriesData = allKeywords.map((kw, i) => {
     const mock = generateData(kw, platform)
     const apiData = kw === keyword ? naverApiData : (compareApiData[kw] ?? null)
     const resolved = resolveAdData(mock, platform, apiData)
+    // DataLab 트렌드 적용 (Naver 전용)
+    if (platform === 'naver') {
+      const dl = kw === keyword ? datalabTrendData : (compareDatalabData[kw] ?? null)
+      const adTotal = (apiData?.monthlyPcQcCnt !== null && apiData?.monthlyMobileQcCnt !== null)
+        ? ((apiData?.monthlyPcQcCnt ?? 0) + (apiData?.monthlyMobileQcCnt ?? 0)) || null
+        : null
+      if (dl) {
+        const withDl = resolveWithDatalab(resolved, dl, adTotal)
+        return { keyword: kw, data: withDl, color: getKeywordColor(kw, i) }
+      }
+    }
     return { keyword: kw, data: resolved, color: getKeywordColor(kw, i) }
   })
 
@@ -1228,6 +1314,7 @@ export default function BlueberryClient() {
         .finally(() => setIsRefreshing(false))
       // 비교 키워드 새로고침
       setCompareApiData({})
+      setCompareDatalabData({})
       compareKeywords.forEach(kw => fetchCompareApi(kw))
     } else {
       setTimeout(() => setIsRefreshing(false), 500)
@@ -1237,6 +1324,7 @@ export default function BlueberryClient() {
   function fetchCompareApi(kw: string) {
     if (platform !== 'naver') return
     setCompareApiLoading(prev => ({ ...prev, [kw]: true }))
+    // Naver Ad API 호출
     fetch('/api/blueberry/naver', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1248,6 +1336,50 @@ export default function BlueberryClient() {
       })
       .catch(() => {})
       .finally(() => setCompareApiLoading(prev => ({ ...prev, [kw]: false })))
+    // DataLab 트렌드 병렬 호출
+    fetchCompareDatalabTrend(kw)
+  }
+
+  function fetchCompareDatalabTrend(kw: string) {
+    const now = new Date()
+    const lastDayOfPrevMonth = new Date(now.getFullYear(), now.getMonth(), 0)
+    const firstDayOf5yAgo = new Date(now.getFullYear() - 5, now.getMonth(), 1)
+    const startDateStr = `${firstDayOf5yAgo.getFullYear()}-${String(firstDayOf5yAgo.getMonth() + 1).padStart(2, '0')}-01`
+    const endDateStr = lastDayOfPrevMonth.toISOString().slice(0, 10)
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+    const isRefKeyword = kw.trim() === DATALAB_REFERENCE_KEYWORD
+
+    const keywordGroups = isRefKeyword
+      ? [{ groupName: kw, keywords: [kw] }]
+      : [
+          { groupName: kw, keywords: [kw] },
+          { groupName: '__ref__', keywords: [DATALAB_REFERENCE_KEYWORD] },
+        ]
+
+    fetch('/api/blueberry/datalab', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ startDate: startDateStr, endDate: endDateStr, timeUnit: 'month', keywordGroups }),
+    })
+      .then(r => r.json())
+      .then((res: { results?: { data: { period: string; ratio: number }[] }[]; error?: string }) => {
+        if (res.error) return
+        const parse = (idx: number): Record<string, number> => {
+          const out: Record<string, number> = {}
+          for (const pt of res.results?.[idx]?.data ?? []) {
+            const mk = pt.period.slice(0, 7)
+            if (mk !== currentMonthKey) out[mk] = pt.ratio
+          }
+          return out
+        }
+        const monthlyRatios = parse(0)
+        const refRatios = !isRefKeyword ? parse(1) : undefined
+        setCompareDatalabData(prev => ({
+          ...prev,
+          [kw]: { monthlyRatios, ...(refRatios && Object.keys(refRatios).length > 0 ? { refRatios } : {}) },
+        }))
+      })
+      .catch(() => {})
   }
 
   function handleAddCompare() {
@@ -1262,6 +1394,7 @@ export default function BlueberryClient() {
     setCompareKeywords(compareKeywords.filter(k => k !== kw))
     setCompareApiData(prev => { const n = { ...prev }; delete n[kw]; return n })
     setCompareApiLoading(prev => { const n = { ...prev }; delete n[kw]; return n })
+    setCompareDatalabData(prev => { const n = { ...prev }; delete n[kw]; return n })
   }
 
   function handleExport() {

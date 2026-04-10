@@ -9,6 +9,7 @@ import {
   Grape,
   LayoutDashboard,
   Megaphone,
+  Monitor,
   Settings,
   Share2,
   Users,
@@ -22,6 +23,7 @@ const HUB_ICONS = {
   engagement: BarChart3,
   shared: Share2,
   blueberry: Grape,
+  monitoring: Monitor,
 }
 
 const ADMIN_LINKS = [

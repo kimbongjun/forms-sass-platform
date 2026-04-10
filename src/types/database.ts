@@ -102,3 +102,56 @@ export interface Submission {
   answers: Record<string, string | boolean | string[]>
   created_at?: string
 }
+
+// ── 웹 모니터링 ────────────────────────────────────────────────────
+export type MonitorStatus = 'up' | 'down' | 'slow' | 'error' | 'unknown'
+export type MonitorInterval = 5 | 10 | 15 | 30 | 60 | 360 | 720 | 1440 // minutes
+
+export interface MonitorSite {
+  id: string
+  user_id: string
+  name: string
+  url: string
+  check_interval: MonitorInterval
+  is_active: boolean
+  notify_email: string | null
+  last_checked_at: string | null
+  last_status: MonitorStatus | null
+  last_response_time: number | null   // ms (전체 응답시간)
+  last_ttfb: number | null            // ms (Time to First Byte)
+  last_status_code: number | null
+  last_error: string | null
+  display_order: number | null        // drag & drop 순서
+  // ── Web Vitals (Google PageSpeed Insights) ────────────────────
+  vitals_lcp: number | null           // ms — Largest Contentful Paint
+  vitals_inp: number | null           // ms — Interaction to Next Paint
+  vitals_cls: number | null           // score — Cumulative Layout Shift
+  vitals_ttfb: number | null          // ms — Server Response Time (TTFB)
+  vitals_perf_score: number | null    // 0-100 — Lighthouse Performance Score
+  vitals_checked_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface MonitorCheck {
+  id: string
+  site_id: string
+  checked_at: string
+  status: MonitorStatus
+  response_time: number | null        // ms
+  ttfb: number | null                 // ms
+  status_code: number | null
+  error_message: string | null
+}
+
+// Web Vitals 임계값 (Google 기준)
+export interface VitalsThreshold {
+  good: number
+  needsImprovement: number
+}
+export const VITALS_THRESHOLDS = {
+  lcp:  { good: 2500,  needsImprovement: 4000  },  // ms
+  inp:  { good: 200,   needsImprovement: 500   },  // ms
+  cls:  { good: 0.1,   needsImprovement: 0.25  },  // score
+  ttfb: { good: 800,   needsImprovement: 1800  },  // ms
+} satisfies Record<string, VitalsThreshold>
