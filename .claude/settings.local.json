@@ -24,7 +24,11 @@
       "Bash(cd \"D:\\\\\\\\workspace\\\\\\\\form-saas-platform\")",
       "Bash(npm install:*)",
       "Bash(git remote:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(npm --version)",
+      "Bash(brew install:*)",
+      "Bash(export PATH=\"/opt/homebrew/bin:$PATH\")",
+      "Bash(npm run:*)"
     ]
   }
 }
