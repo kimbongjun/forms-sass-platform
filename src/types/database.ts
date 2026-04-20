@@ -103,6 +103,131 @@ export interface Submission {
   created_at?: string
 }
 
+// ── 업계 분석 ────────────────────────────────────────────────────
+export type IndustryRegion = 'domestic' | 'global'
+export type IndustryCategory =
+  | 'trend'          // 주요 동향
+  | 'advertising'    // 온라인 광고
+  | 'celebrity'      // 연예인/모델 콘텐츠
+  | 'medical_device' // 의료기기 동향
+  | 'conference'     // 학회/행사
+  | 'sns_event'      // SNS 이벤트
+  | 'ai_case'        // AI 활용 사례
+  | 'press_release'  // 보도자료
+  | 'finance'        // 재무 상태
+
+export const INDUSTRY_CATEGORY_META: Record<IndustryCategory, { label: string; color: string }> = {
+  trend:          { label: '주요 동향',      color: 'blue'   },
+  advertising:    { label: '온라인 광고',    color: 'purple' },
+  celebrity:      { label: '연예인/모델',    color: 'pink'   },
+  medical_device: { label: '의료기기',       color: 'cyan'   },
+  conference:     { label: '학회/행사',      color: 'amber'  },
+  sns_event:      { label: 'SNS 이벤트',     color: 'rose'   },
+  ai_case:        { label: 'AI 활용',        color: 'indigo' },
+  press_release:  { label: '보도자료',       color: 'green'  },
+  finance:        { label: '재무 상태',      color: 'orange' },
+}
+
+export const INDUSTRY_COMPANIES = [
+  { key: '솔타메디칼', label: '솔타메디칼', product: '써마지' },
+  { key: '멀츠',       label: '멀츠',       product: '울쎄라' },
+  { key: '제이시스메디칼', label: '제이시스메디칼', product: '덴서티' },
+  { key: '루트로닉',   label: '루트로닉',   product: '세르프' },
+  { key: '클래시스',   label: '클래시스',   product: 'HIFU/RF' },
+] as const
+
+export type AiSource = 'openai' | 'gemini' | 'claude'
+
+export interface IndustryAnalysisRun {
+  id: string
+  status: 'running' | 'completed' | 'failed'
+  region: IndustryRegion
+  ai_sources: AiSource[]
+  items_count: number
+  market_summary: string | null
+  key_insights: string[] | null
+  error_message: string | null
+  started_at: string
+  completed_at: string | null
+  created_by: string | null
+}
+
+export interface IndustryAnalysisItem {
+  id: string
+  run_id: string | null
+  title: string
+  summary: string | null
+  content: string | null
+  category: IndustryCategory
+  region: IndustryRegion
+  company_tags: string[]
+  source_url: string | null
+  source_name: string | null
+  thumbnail_url: string | null
+  published_at: string | null
+  is_featured: boolean
+  ai_source: AiSource | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface IndustryAnalysisSubscriber {
+  id: string
+  email: string
+  name: string | null
+  frequency: 'daily' | 'weekly'
+  is_active: boolean
+  created_at: string
+}
+
+// ── 썸콘텐츠: 소셜 빅데이터 인사이트 ─────────────────────────────────
+export type ScChannel =
+  | 'naver_blog' | 'naver_cafe' | 'naver_news'
+  | 'instagram' | 'youtube' | 'twitter' | 'facebook'
+  | 'dcinside' | 'ppomppu' | 'gangnam_unnie' | 'babitalk'
+
+export type ScKeywordCategory = 'brand' | 'product' | 'competitor' | 'general'
+
+export interface ScKeyword {
+  id: string
+  keyword: string
+  category: ScKeywordCategory
+  is_active: boolean
+  created_by: string | null
+  created_at: string
+}
+
+export interface ScMention {
+  id: string
+  keyword_id: string
+  channel: ScChannel
+  mention_date: string
+  count: number
+  synced_at: string
+}
+
+export interface ScPost {
+  id: string
+  keyword_id: string | null
+  channel: ScChannel
+  title: string | null
+  content: string | null
+  url: string | null
+  author: string | null
+  sentiment: 'positive' | 'negative' | 'neutral' | null
+  published_at: string | null
+  fetched_at: string
+}
+
+export interface ScMentionSummary {
+  keyword_id: string
+  keyword: string
+  total: number
+  by_channel: Partial<Record<ScChannel, number>>
+  last_synced: string | null
+}
+
 // ── 웹 모니터링 ────────────────────────────────────────────────────
 export type MonitorStatus = 'up' | 'down' | 'slow' | 'error' | 'unknown'
 export type MonitorInterval = 5 | 10 | 15 | 30 | 60 | 360 | 720 | 1440 // minutes

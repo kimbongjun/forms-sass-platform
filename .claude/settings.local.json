@@ -28,7 +28,8 @@
       "Bash(npm --version)",
       "Bash(brew install:*)",
       "Bash(export PATH=\"/opt/homebrew/bin:$PATH\")",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(gh pr:*)"
     ]
   }
 }

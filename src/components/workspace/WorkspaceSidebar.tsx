@@ -11,9 +11,11 @@ import {
   LayoutDashboard,
   Lock,
   Megaphone,
+  Microscope,
   Monitor,
   Settings,
   Share2,
+  TrendingUp,
   Users,
   X,
 } from 'lucide-react'
@@ -29,6 +31,8 @@ const HUB_ICONS = {
   shared: Share2,
   blueberry: Grape,
   monitoring: Monitor,
+  'industry-analysis': Microscope,
+  'some-content': TrendingUp,
 }
 
 const ADMIN_LINKS = [

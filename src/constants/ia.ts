@@ -1,5 +1,5 @@
 export interface WorkspaceHub {
-  key: 'dashboard' | 'projects' | 'blueberry' | 'monitoring'
+  key: 'dashboard' | 'projects' | 'blueberry' | 'monitoring' | 'industry-analysis' | 'some-content'
   href: string
   label: string
   description: string
@@ -41,6 +41,18 @@ export const WORKSPACE_HUBS: WorkspaceHub[] = [
     href: '/monitoring',
     label: '모니터링',
     description: '웹사이트 상태 점검',
+  },
+  {
+    key: 'industry-analysis',
+    href: '/industry-analysis',
+    label: '업계분석',
+    description: '피부 미용 의료기기 업계 동향',
+  },
+  {
+    key: 'some-content',
+    href: '/some-content',
+    label: '썸콘텐츠',
+    description: '소셜 빅데이터 인사이트',
   },
 ]
 
