@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { checkQuota, consume, BUDGET } from '../_lib/groq-quota'
 
 const CACHE = new Map<string, { data: InsightsResult; ts: number }>()
 const CACHE_TTL = 60 * 60 * 1000
+const EST_TOKENS = 1_300  // estimated tokens per Groq call (input + output)
 
 export interface InsightsResult {
   trend_summary: string
   opportunities: string[]
   risks: string[]
   recommendations: string[]
+  warning?: string
 }
 
 export async function POST(req: NextRequest) {
@@ -32,6 +35,19 @@ export async function POST(req: NextRequest) {
   const groqKey = process.env.GROQ_API_KEY
   if (!groqKey) {
     return NextResponse.json({ error: 'GROQ_API_KEY 미설정 (console.groq.com에서 발급)' }, { status: 503 })
+  }
+
+  // Daily quota check — block before calling Groq
+  const quota = checkQuota()
+  if (quota.blocked) {
+    return NextResponse.json(
+      {
+        error: 'DAILY_LIMIT_REACHED',
+        message: `오늘의 AI 분석 한도(${BUDGET.toLocaleString()} 토큰)에 도달했습니다. 자정(KST)에 초기화됩니다.`,
+        remaining: 0,
+      },
+      { status: 429 },
+    )
   }
 
   const trendDesc = metrics
@@ -89,11 +105,17 @@ ${negWords ? `주요 부정어: ${negWords}` : ''}
       return NextResponse.json({ error: 'Groq 응답 파싱 실패' }, { status: 500 })
     }
 
+    consume(EST_TOKENS)
+    const afterQuota = checkQuota()
+
     const result: InsightsResult = {
       trend_summary: parsed.trend_summary ?? '',
       opportunities: Array.isArray(parsed.opportunities) ? parsed.opportunities : [],
       risks: Array.isArray(parsed.risks) ? parsed.risks : [],
       recommendations: Array.isArray(parsed.recommendations) ? parsed.recommendations : [],
+      warning: afterQuota.warning
+        ? `오늘 AI 사용량의 ${Math.round(afterQuota.used / BUDGET * 100)}%를 소진했습니다 (${afterQuota.remaining.toLocaleString()} 토큰 남음). 자정(KST)에 초기화됩니다.`
+        : undefined,
     }
 
     CACHE.set(cacheKey, { data: result, ts: Date.now() })

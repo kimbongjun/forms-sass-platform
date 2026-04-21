@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/utils/supabase/server'
+import { checkQuota, consume, BUDGET } from '../_lib/groq-quota'
 
 const CACHE = new Map<string, { data: SentimentResult; ts: number }>()
 const CACHE_TTL = 24 * 60 * 60 * 1000
+const EST_TOKENS = 2_200  // estimated tokens per Groq call (input + output)
 
 export interface SentimentWord { word: string; weight: number }
 export interface SentimentResult {
@@ -12,6 +14,7 @@ export interface SentimentResult {
   neutral: SentimentWord[]
   total_posts: number
   summary: string
+  warning?: string
 }
 
 export async function GET(req: NextRequest) {
@@ -31,6 +34,19 @@ export async function GET(req: NextRequest) {
   const aiKey = groqKey || openaiKey
   if (!aiKey) {
     return NextResponse.json({ error: 'GROQ_API_KEY 또는 OPENAI_API_KEY 미설정' }, { status: 503 })
+  }
+
+  // Daily quota check — block before calling Groq
+  const quota = checkQuota()
+  if (quota.blocked) {
+    return NextResponse.json(
+      {
+        error: 'DAILY_LIMIT_REACHED',
+        message: `오늘의 AI 분석 한도(${BUDGET.toLocaleString()} 토큰)에 도달했습니다. 자정(KST)에 초기화됩니다.`,
+        remaining: 0,
+      },
+      { status: 429 },
+    )
   }
 
   const supabase = await createServerClient()
@@ -106,7 +122,7 @@ export async function GET(req: NextRequest) {
 
     if (!res.ok) {
       const err = await res.text()
-      return NextResponse.json({ error: `OpenAI API 오류: ${err}` }, { status: 502 })
+      return NextResponse.json({ error: `AI API 오류: ${err}` }, { status: 502 })
     }
 
     const json = await res.json() as { choices: { message: { content: string } }[] }
@@ -116,8 +132,11 @@ export async function GET(req: NextRequest) {
     try {
       parsed = JSON.parse(content)
     } catch {
-      return NextResponse.json({ error: 'OpenAI 응답 파싱 실패' }, { status: 500 })
+      return NextResponse.json({ error: 'AI 응답 파싱 실패' }, { status: 500 })
     }
+
+    consume(EST_TOKENS)
+    const afterQuota = checkQuota()
 
     const result: SentimentResult = {
       keyword: kwText ?? '',
@@ -126,6 +145,9 @@ export async function GET(req: NextRequest) {
       neutral: parsed.neutral ?? [],
       total_posts: posts.length,
       summary: parsed.summary ?? '',
+      warning: afterQuota.warning
+        ? `오늘 AI 사용량의 ${Math.round(afterQuota.used / BUDGET * 100)}%를 소진했습니다 (${afterQuota.remaining.toLocaleString()} 토큰 남음). 자정(KST)에 초기화됩니다.`
+        : undefined,
     }
 
     CACHE.set(cacheKey, { data: result, ts: Date.now() })

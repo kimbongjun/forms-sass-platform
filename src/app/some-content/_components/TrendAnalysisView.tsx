@@ -8,7 +8,7 @@ import {
 } from 'recharts'
 import {
   RefreshCw, TrendingUp, TrendingDown, Minus,
-  Download, Sparkles, ArrowUpRight, ArrowDownRight,
+  Download, Sparkles, ArrowUpRight, ArrowDownRight, AlertTriangle,
 } from 'lucide-react'
 import type { ScKeyword } from '@/types/database'
 import type { TrendResult } from '@/app/api/some-content/trend/route'
@@ -96,7 +96,7 @@ function WordCloud({ words, baseColor, emptyMsg }: {
 }
 
 // ─────────────────────────────────────────────
-// AI 인사이트 패널 (Groq)
+// 인사이트 패널
 // ─────────────────────────────────────────────
 function InsightsPanel({
   keyword, trendData, sentimentData,
@@ -127,8 +127,8 @@ function InsightsPanel({
       })
       if (res.ok) setInsights(await res.json())
       else {
-        const d = await res.json() as { error?: string }
-        setError(d.error ?? '분석 오류')
+        const d = await res.json() as { error?: string; message?: string }
+        setError(d.message ?? d.error ?? '분석 오류')
       }
     } catch (e) { setError(String(e)) }
     finally { setLoading(false) }
@@ -156,6 +156,12 @@ function InsightsPanel({
         )}
       </div>
 
+      {insights?.warning && (
+        <div className="mb-3">
+          <QuotaAlert message={insights.warning} />
+        </div>
+      )}
+
       <div className="rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50 via-white to-white p-6">
         {loading ? (
           <div className="flex items-center gap-3 py-6 text-sm text-gray-400">
@@ -163,7 +169,12 @@ function InsightsPanel({
             <span>Groq AI가 트렌드·감성 데이터를 분석하고 있습니다...</span>
           </div>
         ) : error ? (
-          <p className="py-4 text-sm text-gray-400">{error}</p>
+          <div className="py-4">
+            <QuotaAlert
+              message={error}
+              blocked={error.includes('한도에 도달')}
+            />
+          </div>
         ) : insights ? (
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
             {insights.trend_summary && (
@@ -216,6 +227,23 @@ function InsightsPanel({
         )}
       </div>
     </section>
+  )
+}
+
+// ─────────────────────────────────────────────
+// 일일 한도 알림
+// ─────────────────────────────────────────────
+function QuotaAlert({ message, blocked }: { message: string; blocked?: boolean }) {
+  return (
+    <div className={[
+      'flex items-start gap-2.5 rounded-xl border px-4 py-3 text-sm',
+      blocked
+        ? 'border-red-200 bg-red-50 text-red-700'
+        : 'border-amber-200 bg-amber-50 text-amber-700',
+    ].join(' ')}>
+      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+      <span>{message}</span>
+    </div>
   )
 }
 
@@ -461,6 +489,12 @@ export default function TrendAnalysisView({ keywords }: { keywords: ScKeyword[] 
             </span>
           </div>
         </div>
+
+        {sentimentData?.warning && (
+          <div className="mb-3">
+            <QuotaAlert message={sentimentData.warning} />
+          </div>
+        )}
 
         {sentimentLoading ? (
           <div className="flex h-[240px] items-center justify-center gap-3 rounded-3xl border border-gray-200 bg-white text-gray-400">
