@@ -14,17 +14,18 @@ interface MindMapProps {
   centerKeyword: string
 }
 
+// 채도 높은 팔레트
 const PALETTE = [
-  '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6',
-  '#06B6D4', '#F97316', '#EC4899', '#14B8A6', '#6366F1',
+  '#6366F1', '#10B981', '#F59E0B', '#EF4444', '#3B82F6',
+  '#EC4899', '#14B8A6', '#F97316', '#8B5CF6', '#06B6D4',
   '#84CC16', '#F43F5E',
 ]
 
-const W = 720
-const H = 460
+const W = 880
+const H = 540
 const CX = W / 2
 const CY = H / 2
-const ORBIT_R = 190
+const ORBIT_R = 230
 
 function fmt(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
@@ -44,12 +45,12 @@ export default function KeywordMindMap({ centerKeyword }: MindMapProps) {
   const [hovered, setHovered] = useState<string | null>(null)
   const [history, setHistory] = useState<string[]>([centerKeyword])
   const [fullscreen, setFullscreen] = useState(false)
+  const [loaded, setLoaded] = useState(false)   // for entrance animation
   const svgRef = useRef<SVGSVGElement>(null)
-
-  // Track pointer for tooltip positioning
   const [tooltipPos, setTooltipPos] = useState<{ svgX: number; svgY: number } | null>(null)
 
   const load = useCallback(async (kw: string) => {
+    setLoaded(false)
     setLoading(true)
     setError(null)
     try {
@@ -61,7 +62,9 @@ export default function KeywordMindMap({ centerKeyword }: MindMapProps) {
         return
       }
       const data: RelatedNode[] = await res.json()
-      setNodes(data.slice(0, 10))
+      setNodes(data.slice(0, 12))
+      // Trigger entrance animation after data loads
+      setTimeout(() => setLoaded(true), 80)
     } catch {
       setError('네트워크 오류')
       setNodes([])
@@ -70,7 +73,6 @@ export default function KeywordMindMap({ centerKeyword }: MindMapProps) {
     }
   }, [])
 
-  // Sync when parent prop changes
   useEffect(() => {
     if (centerKeyword !== center) {
       setCenter(centerKeyword)
@@ -94,22 +96,21 @@ export default function KeywordMindMap({ centerKeyword }: MindMapProps) {
 
   const maxVol = Math.max(1, ...nodes.map(n => n.total))
 
-  // Position satellite nodes on an ellipse
+  // 타원형 배치, 노드 크기는 검색량 비례
   const nodeData = nodes.map((node, i) => {
     const angle = (i / nodes.length) * 2 * Math.PI - Math.PI / 2
-    const r = 20 + (node.total / maxVol) * 24  // radius 20–44
-    const lw = 0.8 + (node.total / maxVol) * 4   // line width 0.8–4.8
+    const r = 24 + (node.total / maxVol) * 28  // 24–52
+    const lw = 1 + (node.total / maxVol) * 4.5  // 1–5.5
     return {
       ...node,
-      x: CX + Math.cos(angle) * ORBIT_R,
-      y: CY + Math.sin(angle) * ORBIT_R * 0.82, // slight vertical squeeze
+      x: CX + Math.cos(angle) * ORBIT_R * 1.05,
+      y: CY + Math.sin(angle) * ORBIT_R * 0.78,
       r,
       lw,
       color: PALETTE[i % PALETTE.length],
     }
   })
 
-  // Convert client coords → SVG coords
   const clientToSvg = (clientX: number, clientY: number) => {
     const rect = svgRef.current?.getBoundingClientRect()
     if (!rect) return { svgX: 0, svgY: 0 }
@@ -129,7 +130,7 @@ export default function KeywordMindMap({ centerKeyword }: MindMapProps) {
   return (
     <div className={wrapClass}>
       {/* Toolbar */}
-      <div className="flex items-center justify-between border-b border-gray-100 px-4 py-2.5">
+      <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
         <div className="flex items-center gap-2 min-w-0">
           <button
             onClick={goBack}
@@ -141,7 +142,6 @@ export default function KeywordMindMap({ centerKeyword }: MindMapProps) {
             이전
           </button>
 
-          {/* Breadcrumb */}
           <div className="flex items-center gap-1 overflow-x-auto text-xs text-gray-400 scrollbar-none">
             {history.map((h, i) => (
               <span key={i} className="flex shrink-0 items-center gap-1">
@@ -172,70 +172,110 @@ export default function KeywordMindMap({ centerKeyword }: MindMapProps) {
         ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}
         className="w-full select-none"
-        style={{ height: fullscreen ? 'calc(100% - 44px)' : '400px' }}
+        style={{ height: fullscreen ? 'calc(100% - 52px)' : '480px' }}
         onMouseMove={(e) => {
           if (hovered) setTooltipPos(clientToSvg(e.clientX, e.clientY))
         }}
       >
         <defs>
-          {/* Per-node radial gradient */}
+          {/* 노드별 라디알 그라디언트 */}
           {nodeData.map((n, i) => (
-            <radialGradient key={i} id={`ng-${i}`} cx="35%" cy="35%">
-              <stop offset="0%" stopColor={n.color} stopOpacity="0.9" />
+            <radialGradient key={i} id={`ng-${i}`} cx="30%" cy="30%">
+              <stop offset="0%" stopColor={n.color} stopOpacity="0.85" />
               <stop offset="100%" stopColor={n.color} stopOpacity="1" />
             </radialGradient>
           ))}
 
-          {/* Center gradient */}
-          <radialGradient id="cg" cx="35%" cy="35%">
-            <stop offset="0%" stopColor="#374151" />
+          {/* 중심 노드 그라디언트 */}
+          <radialGradient id="cg" cx="30%" cy="30%">
+            <stop offset="0%" stopColor="#4B5563" />
             <stop offset="100%" stopColor="#111827" />
           </radialGradient>
 
-          {/* Drop shadow */}
-          <filter id="ds" x="-20%" y="-20%" width="140%" height="140%">
-            <feDropShadow dx="0" dy="2" stdDeviation="4" floodColor="#00000020" />
+          {/* 드롭 섀도우 */}
+          <filter id="ds" x="-25%" y="-25%" width="150%" height="150%">
+            <feDropShadow dx="0" dy="3" stdDeviation="5" floodColor="#00000018" />
           </filter>
 
-          {/* Glow for hovered lines */}
-          <filter id="glow">
-            <feGaussianBlur stdDeviation="2" result="blur" />
+          {/* 강한 글로우 (호버) */}
+          <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+            <feGaussianBlur stdDeviation="5" result="blur" />
             <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
           </filter>
+
+          {/* 중심 노드 글로우 */}
+          <filter id="centerGlow" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="8" result="blur" />
+            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+
+          {/* CSS 키프레임 애니메이션 */}
+          <style>{`
+            @keyframes mm-pulse {
+              0%, 100% { opacity: 0.15; r: 62; }
+              50% { opacity: 0.35; r: 76; }
+            }
+            @keyframes mm-spin-slow {
+              from { transform: rotate(0deg); }
+              to { transform: rotate(360deg); }
+            }
+            .mm-pulse-ring {
+              animation: mm-pulse 3s ease-in-out infinite;
+              transform-box: fill-box;
+              transform-origin: center;
+            }
+            .mm-orbit-ring {
+              animation: mm-spin-slow 30s linear infinite;
+              transform-box: fill-box;
+              transform-origin: center;
+            }
+          `}</style>
         </defs>
 
-        {/* Background radial grid — subtle */}
-        {[ORBIT_R * 0.5, ORBIT_R, ORBIT_R * 1.45].map((r, i) => (
-          <circle key={i} cx={CX} cy={CY} r={r} fill="none" stroke="#F3F4F6" strokeWidth="1" />
+        {/* 배경 동심원 */}
+        {[ORBIT_R * 0.42, ORBIT_R * 0.82, ORBIT_R * 1.22].map((r, i) => (
+          <circle key={i} cx={CX} cy={CY} r={r} fill="none" stroke="#F3F4F6" strokeWidth={i === 1 ? 1.5 : 1} strokeDasharray={i === 2 ? '6 4' : undefined} />
         ))}
 
-        {/* Connection lines */}
+        {/* 연결선 (path로 pathLength 애니메이션) */}
         {nodeData.map((n, i) => {
           const isHov = hovered === n.keyword
           return (
-            <line
+            <path
               key={`l-${i}`}
-              x1={CX} y1={CY}
-              x2={n.x} y2={n.y}
+              d={`M ${CX} ${CY} L ${n.x.toFixed(1)} ${n.y.toFixed(1)}`}
+              pathLength={1}
               stroke={n.color}
               strokeWidth={isHov ? n.lw + 2 : n.lw}
-              strokeOpacity={isHov ? 0.9 : 0.3}
-              strokeDasharray={isHov ? undefined : '6 4'}
+              strokeOpacity={isHov ? 1 : 0.35}
+              strokeLinecap="round"
+              strokeDasharray="1"
+              strokeDashoffset={loaded ? 0 : 1}
+              fill="none"
               filter={isHov ? 'url(#glow)' : undefined}
-              style={{ transition: 'stroke-opacity 0.2s, stroke-width 0.15s' }}
+              style={{
+                transition: `stroke-dashoffset 0.55s cubic-bezier(0.22, 1, 0.36, 1) ${i * 0.045}s, stroke-opacity 0.2s, stroke-width 0.15s`,
+              }}
             />
           )
         })}
 
-        {/* Satellite nodes */}
+        {/* 위성 노드 */}
         {nodeData.map((n, i) => {
           const isHov = hovered === n.keyword
           const labelLen = n.keyword.length
-          const labelFontSize = labelLen > 7 ? 9 : labelLen > 5 ? 10 : 11
+          const labelFs = labelLen > 7 ? 10 : labelLen > 5 ? 11 : 12
           return (
             <g
               key={`n-${i}`}
-              style={{ cursor: 'pointer' }}
+              style={{
+                cursor: 'pointer',
+                opacity: loaded ? 1 : 0,
+                transform: loaded ? 'scale(1)' : 'scale(0.3)',
+                transformBox: 'fill-box',
+                transformOrigin: 'center',
+                transition: `opacity 0.35s ease-out ${0.08 + i * 0.05}s, transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) ${0.08 + i * 0.05}s`,
+              }}
               onClick={() => navigateTo(n.keyword)}
               onMouseEnter={(e) => {
                 setHovered(n.keyword)
@@ -243,40 +283,39 @@ export default function KeywordMindMap({ centerKeyword }: MindMapProps) {
               }}
               onMouseLeave={() => { setHovered(null); setTooltipPos(null) }}
             >
-              {/* Outer glow ring on hover */}
+              {/* 호버 오라 링 */}
               {isHov && (
-                <circle
-                  cx={n.x} cy={n.y}
-                  r={n.r + 8}
-                  fill={n.color}
-                  fillOpacity={0.15}
-                />
+                <circle cx={n.x} cy={n.y} r={n.r + 12} fill={n.color} fillOpacity={0.12} />
               )}
+              {/* 메인 노드 */}
               <circle
                 cx={n.x} cy={n.y}
-                r={isHov ? n.r + 3 : n.r}
+                r={isHov ? n.r + 4 : n.r}
                 fill={`url(#ng-${i})`}
                 filter="url(#ds)"
-                style={{ transition: 'r 0.15s' }}
+                style={{ transition: 'r 0.18s cubic-bezier(0.34, 1.56, 0.64, 1)' }}
               />
+              {/* 키워드 텍스트 */}
               <text
                 x={n.x} y={n.y + 1}
                 textAnchor="middle"
                 dominantBaseline="middle"
                 fill="white"
-                fontSize={labelFontSize}
+                fontSize={labelFs}
                 fontWeight="700"
+                letterSpacing="-0.3"
                 style={{ pointerEvents: 'none' }}
               >
                 {truncate(n.keyword, 7)}
               </text>
-              {/* Volume sub-label */}
+              {/* 검색량 서브라벨 */}
               <text
                 x={n.x}
-                y={n.y + n.r + 13}
+                y={n.y + n.r + 15}
                 textAnchor="middle"
                 fill="#9CA3AF"
-                fontSize="9"
+                fontSize="9.5"
+                fontWeight="500"
                 style={{ pointerEvents: 'none' }}
               >
                 {fmt(n.total)}
@@ -285,71 +324,75 @@ export default function KeywordMindMap({ centerKeyword }: MindMapProps) {
           )
         })}
 
-        {/* Center node */}
+        {/* 중심 노드 */}
         <g>
-          <circle cx={CX} cy={CY} r={54} fill="url(#cg)" filter="url(#ds)" />
+          {/* 펄스 링 */}
+          <circle cx={CX} cy={CY} r={62} fill="#111827" className="mm-pulse-ring" />
+          {/* 본체 */}
+          <circle cx={CX} cy={CY} r={60} fill="url(#cg)" filter="url(#centerGlow)" />
+          {/* 내부 하이라이트 링 */}
+          <circle cx={CX} cy={CY} r={59} fill="none" stroke="white" strokeWidth="0.5" strokeOpacity="0.1" />
           <text
-            x={CX} y={CY - 8}
+            x={CX} y={CY - 10}
             textAnchor="middle"
             dominantBaseline="middle"
             fill="white"
-            fontSize={center.length > 6 ? 12 : 14}
+            fontSize={center.length > 6 ? 14 : 16}
             fontWeight="800"
+            letterSpacing="-0.5"
             style={{ pointerEvents: 'none' }}
           >
-            {truncate(center, 8)}
+            {truncate(center, 9)}
           </text>
           <text
-            x={CX} y={CY + 10}
+            x={CX} y={CY + 12}
             textAnchor="middle"
-            fill="#6B7280"
-            fontSize="9"
+            fill="#9CA3AF"
+            fontSize="10"
+            fontWeight="500"
             style={{ pointerEvents: 'none' }}
           >
             연관어 맵
           </text>
         </g>
 
-        {/* Tooltip */}
+        {/* 호버 툴팁 */}
         {hovered && hoveredNode && tooltipPos && (() => {
-          const tx = tooltipPos.svgX + 12
-          const ty = tooltipPos.svgY - 46
-          const safeX = Math.min(tx, W - 148)
-          const safeY = Math.max(ty, 4)
+          const tx = Math.min(tooltipPos.svgX + 14, W - 160)
+          const ty = Math.max(tooltipPos.svgY - 52, 4)
           return (
             <g style={{ pointerEvents: 'none' }}>
-              <rect x={safeX} y={safeY} width={140} height={62} rx={8} ry={8}
-                fill="#1F2937" fillOpacity={0.96} />
-              <text x={safeX + 10} y={safeY + 18} fill="white" fontSize="12" fontWeight="700">
-                {hovered}
+              <rect x={tx} y={ty} width={150} height={68} rx={10} ry={10} fill="#111827" fillOpacity={0.97} />
+              <text x={tx + 12} y={ty + 20} fill="white" fontSize="13" fontWeight="700">{hovered}</text>
+              <text x={tx + 12} y={ty + 37} fill="#9CA3AF" fontSize="10">
+                PC {fmt(hoveredNode.pc)} · 모바일 {fmt(hoveredNode.mobile)}
               </text>
-              <text x={safeX + 10} y={safeY + 34} fill="#9CA3AF" fontSize="9.5">
-                PC: {fmt(hoveredNode.pc)} · 모바일: {fmt(hoveredNode.mobile)}
-              </text>
-              <text x={safeX + 10} y={safeY + 48} fill="#6B7280" fontSize="9">
-                클릭하면 이 키워드로 이동
+              <text x={tx + 12} y={ty + 52} fill="#6B7280" fontSize="9.5">
+                총 {fmt(hoveredNode.total)} · 클릭해서 탐색
               </text>
             </g>
           )
         })()}
 
-        {/* Empty / error state */}
+        {/* 빈 상태 / 에러 */}
         {!loading && nodes.length === 0 && (
-          <text x={CX} y={CY + 90} textAnchor="middle" fill="#D1D5DB" fontSize="13">
-            {error ?? '연관어 데이터가 없습니다'}
-          </text>
-        )}
-        {!loading && nodes.length === 0 && error && (
-          <text x={CX} y={CY + 110} textAnchor="middle" fill="#D1D5DB" fontSize="11">
-            Naver Ad API 키(NAVER_AD_SECRET_KEY) 설정 필요
-          </text>
+          <>
+            <text x={CX} y={CY + 90} textAnchor="middle" fill="#D1D5DB" fontSize="14">
+              {error ?? '연관어 데이터가 없습니다'}
+            </text>
+            {error && (
+              <text x={CX} y={CY + 112} textAnchor="middle" fill="#D1D5DB" fontSize="11">
+                Naver Ad API 키(NAVER_AD_SECRET_KEY) 설정 필요
+              </text>
+            )}
+          </>
         )}
       </svg>
 
-      {/* Fullscreen backdrop */}
+      {/* 풀스크린 backdrop */}
       {fullscreen && (
         <div
-          className="fixed inset-0 -z-10 bg-black/40 backdrop-blur-sm"
+          className="fixed inset-0 -z-10 bg-black/50 backdrop-blur-sm"
           onClick={() => setFullscreen(false)}
         />
       )}

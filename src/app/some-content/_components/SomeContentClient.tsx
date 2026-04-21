@@ -5,7 +5,7 @@ import {
   TrendingUp, Globe, Settings, RefreshCw,
   Plus, Trash2, ExternalLink, BarChart3,
   CheckCircle2, XCircle, ChevronDown,
-  Download, ChevronUp, Cpu, AlertCircle,
+  Download, ChevronUp, Cpu, AlertCircle, Info,
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import type { ScKeyword, ScMentionSummary, ScPost, ScKeywordCategory, ScChannel } from '@/types/database'
@@ -273,7 +273,7 @@ function PostCard({ post }: { post: ScPost & { keyword: string } }) {
 // ── 설정 탭 ───────────────────────────────────────────────────────
 function SettingsTab({
   keywords, newKeyword, setNewKeyword, newCategory, setNewCategory,
-  adding, onAdd, onDelete, onCrawl, crawling,
+  adding, onAdd, onDelete,
 }: {
   keywords: ScKeyword[]
   newKeyword: string
@@ -283,8 +283,6 @@ function SettingsTab({
   adding: boolean
   onAdd: () => void
   onDelete: (id: string) => void
-  onCrawl: () => void
-  crawling: boolean
 }) {
   return (
     <div className="space-y-8">
@@ -325,18 +323,14 @@ function SettingsTab({
         </div>
       </section>
 
-      {/* 키워드 목록 + 크롤링 실행 */}
+      {/* 키워드 목록 */}
       <section>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-gray-700">수집 키워드 ({keywords.length}개)</h2>
-          <button
-            onClick={onCrawl}
-            disabled={crawling || keywords.length === 0}
-            className="flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-50 transition-colors"
-          >
-            <Download className={`h-4 w-4 ${crawling ? 'animate-bounce' : ''}`} />
-            {crawling ? '크롤링 중...' : '커뮤니티 크롤링'}
-          </button>
+          <div className="flex items-center gap-1.5 rounded-xl bg-blue-50 px-3 py-1.5 text-xs text-blue-600">
+            <Info className="h-3.5 w-3.5 shrink-0" />
+            상단 <span className="font-semibold">전체 갱신</span> 버튼으로 API 동기화 + 크롤링을 함께 실행합니다
+          </div>
         </div>
         {keywords.length === 0 ? (
           <EmptyState message="모니터링할 키워드를 추가하세요." />
@@ -665,8 +659,7 @@ export default function SomeContentClient() {
   const [mentions, setMentions] = useState<ScMentionSummary[]>([])
   const [posts, setPosts] = useState<(ScPost & { keyword: string })[]>([])
   const [loading, setLoading] = useState(true)
-  const [syncing, setSyncing] = useState(false)
-  const [crawling, setCrawling] = useState(false)
+  const [syncPhase, setSyncPhase] = useState<'idle' | 'api' | 'crawl'>('idle')
   const [lastSync, setLastSync] = useState<string | null>(null)
   const [selectedKeyword, setSelectedKeyword] = useState('all')
   const [selectedChannel, setSelectedChannel] = useState('all')
@@ -696,20 +689,21 @@ export default function SomeContentClient() {
 
   useEffect(() => { fetchAll() }, [fetchAll])
 
-  const handleSync = async () => {
-    setSyncing(true)
+  const handleRefreshAll = async () => {
+    if (syncPhase !== 'idle') return
     try {
-      const res = await fetch('/api/some-content/mentions/sync', { method: 'POST' })
-      if (res.ok) await fetchAll()
-    } finally { setSyncing(false) }
-  }
-
-  const handleCrawl = async () => {
-    setCrawling(true)
-    try {
-      const res = await fetch('/api/some-content/posts/crawl', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
-      if (res.ok) await fetchAll()
-    } finally { setCrawling(false) }
+      setSyncPhase('api')
+      await fetch('/api/some-content/mentions/sync', { method: 'POST' })
+      setSyncPhase('crawl')
+      await fetch('/api/some-content/posts/crawl', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      })
+      await fetchAll()
+    } finally {
+      setSyncPhase('idle')
+    }
   }
 
   const handleAddKeyword = async () => {
@@ -802,12 +796,12 @@ export default function SomeContentClient() {
               </button>
             )}
             <button
-              onClick={handleSync}
-              disabled={syncing}
+              onClick={handleRefreshAll}
+              disabled={syncPhase !== 'idle'}
               className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors"
             >
-              <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
-              {syncing ? '동기화 중...' : '새로고침'}
+              <RefreshCw className={`h-4 w-4 ${syncPhase !== 'idle' ? 'animate-spin' : ''}`} />
+              {syncPhase === 'api' ? 'API 동기화 중...' : syncPhase === 'crawl' ? '크롤링 중...' : '전체 갱신'}
             </button>
           </div>
         </div>
@@ -855,7 +849,6 @@ export default function SomeContentClient() {
                 newCategory={newCategory} setNewCategory={setNewCategory}
                 adding={adding} onAdd={handleAddKeyword}
                 onDelete={handleDeleteKeyword}
-                onCrawl={handleCrawl} crawling={crawling}
               />
             )}
           </>
