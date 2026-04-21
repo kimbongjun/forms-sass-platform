@@ -43,17 +43,15 @@ const SRC_LABELS: Record<SourceType, string> = {
 }
 
 const W = 1200
-const H = 760
+const H = 820
 const CX = W / 2
 const CY = H / 2
-const INNER_R = 195
-const OUTER_R = 320
+const INNER_R = 215
+const OUTER_R = 345
 const INNER_MAX = 15
 
 function fmt(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
-  return n > 0 ? String(n) : '-'
+  return n > 0 ? n.toLocaleString('ko-KR') : '-'
 }
 
 function trunc(s: string, max: number): string {
@@ -123,12 +121,12 @@ export default function KeywordMindMap({ centerKeyword }: MindMapProps) {
   const layoutInner: LayoutNode[] = innerNodes.map((n, i) => {
     const angle = (i / innerNodes.length) * 2 * Math.PI - Math.PI / 2
     const vr = n.total > 0 ? n.total / maxInnerVol : 0.3
-    return { ...n, x: CX + Math.cos(angle) * INNER_R, y: CY + Math.sin(angle) * INNER_R, r: 22 + vr * 14, lw: 1 + vr * 3.5, ring: 'inner' }
+    return { ...n, x: CX + Math.cos(angle) * INNER_R, y: CY + Math.sin(angle) * INNER_R, r: 30 + vr * 18, lw: 1.2 + vr * 3.5, ring: 'inner' }
   })
   const layoutOuter: LayoutNode[] = outerNodes.map((n, i) => {
     const angle = (i / outerNodes.length) * 2 * Math.PI - Math.PI / 2
     const vr = n.total > 0 ? n.total / maxOuterVol : 0.3
-    return { ...n, x: CX + Math.cos(angle) * OUTER_R, y: CY + Math.sin(angle) * OUTER_R, r: 13 + vr * 7, lw: 0.75 + vr * 1.5, ring: 'outer' }
+    return { ...n, x: CX + Math.cos(angle) * OUTER_R, y: CY + Math.sin(angle) * OUTER_R, r: 17 + vr * 10, lw: 0.9 + vr * 1.8, ring: 'outer' }
   })
   const allNodes = [...layoutInner, ...layoutOuter]
   const hoveredNode = allNodes.find(n => n.keyword === hovered)
@@ -150,7 +148,7 @@ export default function KeywordMindMap({ centerKeyword }: MindMapProps) {
   return (
     <div className={wrapClass}>
       {/* Toolbar */}
-      <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 shrink-0">
+      <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 shrink-0 bg-white">
         <div className="flex items-center gap-2 min-w-0">
           <button
             onClick={goBack}
@@ -195,7 +193,7 @@ export default function KeywordMindMap({ centerKeyword }: MindMapProps) {
         ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}
         className="w-full select-none"
-        style={{ height: fullscreen ? 'calc(100% - 104px)' : '560px' }}
+        style={{ height: fullscreen ? 'calc(100% - 104px)' : '620px', backgroundColor : '#ffffff' }}
         onMouseMove={(e) => { if (hovered) setTooltipPos(clientToSvg(e.clientX, e.clientY)) }}
       >
         <defs>
@@ -269,12 +267,12 @@ export default function KeywordMindMap({ centerKeyword }: MindMapProps) {
         {allNodes.map((n, i) => {
           const isHov = hovered === n.keyword
           const isInner = n.ring === 'inner'
-          const maxChars = isHov ? 12 : isInner ? 6 : 4
+          const maxChars = isHov ? 12 : isInner ? 7 : 5
           const fs = isHov
-            ? (n.keyword.length > 8 ? 11 : n.keyword.length > 5 ? 13 : 15)
+            ? (n.keyword.length > 8 ? 13 : n.keyword.length > 5 ? 15 : 17)
             : isInner
-              ? (n.keyword.length > 5 ? 10 : 12)
-              : (n.keyword.length > 4 ? 7 : 8)
+              ? (n.keyword.length > 6 ? 12 : n.keyword.length > 4 ? 14 : 16)
+              : (n.keyword.length > 4 ? 9 : 11)
 
           return (
             <g
@@ -323,7 +321,7 @@ export default function KeywordMindMap({ centerKeyword }: MindMapProps) {
           <text
             x={CX} y={CY - 10}
             textAnchor="middle" dominantBaseline="middle"
-            fill="white" fontSize={center.length > 6 ? 14 : 18}
+            fill="white" fontSize={center.length > 6 ? 16 : 21}
             fontWeight="800" letterSpacing="-0.5"
             style={{ pointerEvents: 'none' }}
           >
@@ -343,18 +341,18 @@ export default function KeywordMindMap({ centerKeyword }: MindMapProps) {
           const boxH = hasVol ? 84 : 66
           return (
             <g style={{ pointerEvents: 'none' }}>
-              <rect x={tx} y={ty} width={215} height={boxH} rx={10} ry={10} fill="#111827" fillOpacity={0.97} />
+              <rect x={tx} y={ty} width={260} height={boxH} rx={10} ry={10} fill="#111827" fillOpacity={0.97} />
               <circle cx={tx + 14} cy={ty + 16} r={5} fill={CAT[hoveredNode.category].color} />
               <text x={tx + 24} y={ty + 20} fill="white" fontSize="13" fontWeight="700">{hovered}</text>
               {hasVol && (
-                <text x={tx + 12} y={ty + 38} fill="#9CA3AF" fontSize="11">
+                <text x={tx + 12} y={ty + 38} fill="#ffffff" fontSize="15">
                   PC {fmt(hoveredNode.pc)} · 모바일 {fmt(hoveredNode.mobile)} · 총 {fmt(hoveredNode.total)}
                 </text>
               )}
-              <text x={tx + 12} y={ty + (hasVol ? 54 : 38)} fill="#6B7280" fontSize="10">
+              <text x={tx + 12} y={ty + (hasVol ? 54 : 38)} fill="#ffffff" fontSize="10">
                 {CAT[hoveredNode.category].label}
               </text>
-              <text x={tx + 12} y={ty + (hasVol ? 68 : 52)} fill="#4B5563" fontSize="10">
+              <text x={tx + 12} y={ty + (hasVol ? 68 : 52)} fill="#ffffff" fontSize="10">
                 출처: {srcText} · 클릭해서 탐색
               </text>
             </g>
