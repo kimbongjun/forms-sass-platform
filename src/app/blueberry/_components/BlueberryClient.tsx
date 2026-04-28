@@ -219,9 +219,15 @@ function resolveAdData(
       { name: '뉴스', count: apiData.contentByPlatform.news, color: '#1A73E8' },
     ].filter((p) => p.count > 0).sort((a, b) => b.count - a.count)
 
-    // 콘텐츠 발행량: contentByPlatform 합계를 contentVolume에 반영
-    const totalContent = cp.reduce((s, p) => s + p.count, 0)
-    const contentVolume = scaleToMonthlyAvg(mock.contentVolume, totalContent || mock.contentVolume[mock.contentVolume.length - 1])
+    // contentVolume: mock 월간 추정치 유지 (검색 API 총계는 누적값이라 월간 스케일에 부적합)
+    const contentVolume = mock.contentVolume
+    const mockMonthlyLast = contentVolume[contentVolume.length - 1]
+    const cpApiTotal = cp.reduce((s, p) => s + p.count, 0)
+
+    // contentByPlatform: API 플랫폼 비율을 mock 월간 추정치에 적용 → 월간 플랫폼별 발행량 추정
+    const contentByPlatformMonthly = (cpApiTotal > 0 && cp.length > 0)
+      ? cp.map(p => ({ ...p, count: Math.max(1, Math.round(mockMonthlyLast * p.count / cpApiTotal)) }))
+      : mock.contentByPlatform
 
     return {
       ...mock,
@@ -230,7 +236,7 @@ function resolveAdData(
       searchVolumeMobile,
       contentVolume,
       relatedKeywords,
-      contentByPlatform: cp.length ? cp : mock.contentByPlatform,
+      contentByPlatform: contentByPlatformMonthly,
       platformMentions: cp.length ? cp : mock.platformMentions,
       isReal: true,
       hasAdVolume: hasAdVol,
@@ -274,12 +280,16 @@ function resolveGoogleData(
   const searchVolumePC = searchVolume.map((v, i) => Math.round(v * (pcRatio[i] ?? 0.4)))
   const searchVolumeMobile = searchVolume.map((v, i) => v - searchVolumePC[i])
 
-  // 연관 키워드를 Google 실측 데이터로 교체
-  const relatedKeywords: RelatedKeyword[] = googleData.relatedQueries.slice(0, 5).map((q) => {
-    const vol = Math.max(100, Math.round(mockAvg * (q.value / 100) * 0.8))
-    const competition: RelatedKeyword['competition'] = vol > mockAvg * 0.5 ? 'high' : vol > mockAvg * 0.2 ? 'mid' : 'low'
-    return { keyword: q.query, volume: vol, competition }
-  })
+  // 연관 키워드를 Google 실측 데이터로 교체 (중복 쿼리 제거 후 상위 5개)
+  const seenQueries = new Set<string>()
+  const relatedKeywords: RelatedKeyword[] = googleData.relatedQueries
+    .filter(q => { if (seenQueries.has(q.query)) return false; seenQueries.add(q.query); return true })
+    .slice(0, 5)
+    .map((q) => {
+      const vol = Math.max(100, Math.round(mockAvg * (q.value / 100) * 0.8))
+      const competition: RelatedKeyword['competition'] = vol > mockAvg * 0.5 ? 'high' : vol > mockAvg * 0.2 ? 'mid' : 'low'
+      return { keyword: q.query, volume: vol, competition }
+    })
 
   return {
     ...mock,
@@ -1072,7 +1082,7 @@ export default function BlueberryClient() {
   const [searchShowCustom, setSearchShowCustom] = useState(false)
   const [searchCustomStart, setSearchCustomStart] = useState('')
   const [searchCustomEnd, setSearchCustomEnd] = useState('')
-  const [contentPeriod, setContentPeriod] = useState<Period>('1y')
+  const [contentPeriod, setContentPeriod] = useState<Period>('1m')
   const [contentShowCustom, setContentShowCustom] = useState(false)
   const [contentCustomStart, setContentCustomStart] = useState('')
   const [contentCustomEnd, setContentCustomEnd] = useState('')
@@ -1489,14 +1499,14 @@ export default function BlueberryClient() {
   const totalSearch  = naverLoading ? null : hasAdVolume_kpi ? (adMonthlyPC! + adMonthlyMobile!) : primaryData ? (primaryData.searchVolume[lastIdx] ?? 0) : 0
   const totalPC      = naverLoading ? null : hasAdVolume_kpi ? adMonthlyPC!  : primaryData ? (primaryData.searchVolumePC[lastIdx] ?? 0) : 0
   const totalMobile  = naverLoading ? null : hasAdVolume_kpi ? adMonthlyMobile! : primaryData ? (primaryData.searchVolumeMobile[lastIdx] ?? 0) : 0
-  // 발행량·언급량도 최신달(lastIdx) 고정
-  const totalContent = primaryData ? (primaryData.contentVolume[lastIdx] ?? 0) : 0
   const totalMention = primaryData
     ? Math.round(primaryData.platformMentions.reduce((s, p) => s + p.count, 0) / 12)
     : 0
 
-  // 실측 데이터는 contentByPlatform이 이미 실측값이므로 그대로 사용
+  // contentByPlatform: 월간 추정치 (API 비율 × mock 월간 총계)
   const scaledContentByPlatform = primaryData?.contentByPlatform ?? []
+  // 발행량 KPI: contentVolume[lastIdx] = mock 월간 추정 총계 (플랫폼별 합산과 일치)
+  const totalContent = primaryData ? (primaryData.contentVolume[lastIdx] ?? 0) : 0
 
   const searchUnit = ''
 
@@ -1774,7 +1784,7 @@ export default function BlueberryClient() {
                 </span>
               </div>
               <p className="mt-3 text-2xl font-bold text-gray-900">{fmt(totalContent)}</p>
-              <p className="text-sm text-gray-500">콘텐츠 발행량 · 지난달 기준</p>
+              <p className="text-sm text-gray-500">월간 콘텐츠 발행량 · 지난달 기준</p>
               <div className="mt-3 space-y-1.5 border-t border-gray-100 pt-3">
                 {scaledContentByPlatform.map((p) => (
                   <div key={p.name} className="flex items-center justify-between text-xs">
@@ -2063,7 +2073,7 @@ export default function BlueberryClient() {
                   {primaryData.relatedKeywords.map((k, i) => {
                     const scaledVol = Math.round(k.volume * relatedMonthCount / 12)
                     return (
-                      <tr key={k.keyword} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
+                      <tr key={`${k.keyword}-${i}`} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
                         <td className="px-4 py-2.5 font-medium text-gray-900">{k.keyword}</td>
                         <td className="px-4 py-2.5 text-right text-gray-600">
                           {naverLoading ? <span className="text-gray-300 animate-pulse">--</span> : fmt(scaledVol)}
