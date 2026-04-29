@@ -11,7 +11,6 @@ import {
   LayoutDashboard,
   Lock,
   Megaphone,
-  Microscope,
   Monitor,
   Settings,
   Share2,
@@ -31,7 +30,6 @@ const HUB_ICONS = {
   shared: Share2,
   blueberry: Grape,
   monitoring: Monitor,
-  'industry-analysis': Microscope,
   'some-content': TrendingUp,
 }
 

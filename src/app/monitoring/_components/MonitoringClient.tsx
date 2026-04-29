@@ -6,7 +6,7 @@ import {
   AlertCircle, Clock, Wifi, WifiOff, ChevronDown, ChevronUp,
   Mail, Globe, Activity, CheckCircle, XCircle, Gauge, Zap,
   BarChart2, TrendingUp, Info, GripVertical,
-  ShieldCheck, ShieldAlert, ShieldOff,
+  ShieldCheck, ShieldAlert, ShieldOff, Map, ExternalLink,
 } from 'lucide-react'
 import {
   DndContext,
@@ -27,6 +27,7 @@ import type { DraggableAttributes } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import type {
   MonitorSite, MonitorStatus, MonitorInterval, MonitorCheck,
+  MonitorSitemapRun, SitemapPageResult, SitemapPageStatus,
 } from '@/types/database'
 import { VITALS_THRESHOLDS } from '@/types/database'
 
@@ -404,8 +405,346 @@ function SiteForm({ initial, onSave, onCancel, saving }: SiteFormProps) {
   )
 }
 
+// ── 사이트맵 패널 ─────────────────────────────────────────────────
+type SitemapFilter = 'all' | 'ok' | 'not_found' | 'error' | 'wp_debug' | 'layout_issue'
+
+function sitemapStatusMeta(status: SitemapPageStatus) {
+  switch (status) {
+    case 'ok':           return { label: '정상',          color: 'text-emerald-700', bg: 'bg-emerald-50', dot: 'bg-emerald-500' }
+    case 'not_found':    return { label: '404',            color: 'text-red-700',     bg: 'bg-red-50',     dot: 'bg-red-500'     }
+    case 'wp_debug':     return { label: 'WP 디버그',      color: 'text-amber-700',   bg: 'bg-amber-50',   dot: 'bg-amber-500'   }
+    case 'layout_issue': return { label: '레이아웃 이상',  color: 'text-violet-700',  bg: 'bg-violet-50',  dot: 'bg-violet-500'  }
+    default:             return { label: '오류',           color: 'text-red-700',     bg: 'bg-red-50',     dot: 'bg-red-400'     }
+  }
+}
+
+function fmtMs2(ms: number | null) {
+  if (ms === null) return '—'
+  return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`
+}
+
+function SitemapPanel({ siteId }: { siteId: string }) {
+  const [run, setRun] = useState<MonitorSitemapRun | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [checking, setChecking] = useState(false)
+  const [filter, setFilter] = useState<SitemapFilter>('all')
+  const [expandedUrl, setExpandedUrl] = useState<string | null>(null)
+
+  const loadRun = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/monitoring/sitemap/${siteId}`)
+      const data = await res.json() as { run: MonitorSitemapRun | null }
+      setRun(data.run ?? null)
+    } finally {
+      setLoading(false)
+    }
+  }, [siteId])
+
+  useEffect(() => { loadRun() }, [loadRun])
+
+  async function triggerCheck() {
+    setChecking(true)
+    setFilter('all')
+    try {
+      const res = await fetch(`/api/monitoring/sitemap/${siteId}`, { method: 'POST' })
+      const data = await res.json() as { run: MonitorSitemapRun | null; result?: { sitemap_found: boolean; tried_urls: string[]; pages: SitemapPageResult[] } }
+      // DB 저장 실패해도 result가 있으면 임시 표시
+      if (data.run) {
+        setRun(data.run)
+      } else if (data.result) {
+        const r = data.result
+        setRun({
+          id: '', site_id: siteId, checked_at: new Date().toISOString(),
+          sitemap_url: null, sitemap_found: r.sitemap_found, tried_urls: r.tried_urls,
+          total_urls: r.pages.length,
+          ok_count:    r.pages.filter((p: SitemapPageResult) => p.status === 'ok').length,
+          error_count: r.pages.filter((p: SitemapPageResult) => p.status === 'error' || p.status === 'not_found').length,
+          issue_count: r.pages.filter((p: SitemapPageResult) => p.status === 'wp_debug' || p.status === 'layout_issue').length,
+          pages: r.pages,
+        })
+      }
+    } finally {
+      setChecking(false)
+    }
+  }
+
+  const pages: SitemapPageResult[] = run?.pages ?? []
+  const filterCounts = {
+    all:          pages.length,
+    ok:           pages.filter(p => p.status === 'ok').length,
+    not_found:    pages.filter(p => p.status === 'not_found').length,
+    error:        pages.filter(p => p.status === 'error').length,
+    wp_debug:     pages.filter(p => p.status === 'wp_debug').length,
+    layout_issue: pages.filter(p => p.status === 'layout_issue').length,
+  }
+  const displayPages = filter === 'all' ? pages : pages.filter(p => p.status === filter)
+  const okPct = run && run.total_urls > 0 ? Math.round(run.ok_count / run.total_urls * 100) : 0
+
+  // ── 로딩 중 ────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 py-6 text-xs text-gray-400">
+        <RefreshCw className="h-3.5 w-3.5 animate-spin" />이전 체크 결과 불러오는 중…
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+
+      {/* ── 헤더 바 ─────────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-[11px] text-gray-400">
+          {run ? (
+            <span>
+              마지막 체크: {new Date(run.checked_at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+            </span>
+          ) : (
+            <span>아직 체크한 기록이 없습니다.</span>
+          )}
+        </div>
+        <button onClick={triggerCheck} disabled={checking}
+          className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm">
+          <RefreshCw className={['h-3.5 w-3.5', checking ? 'animate-spin' : ''].join(' ')} />
+          {checking ? '크롤링 중…' : '지금 체크'}
+        </button>
+      </div>
+
+      {/* ── 체크 중 오버레이 ────────────────────────────────────── */}
+      {checking && (
+        <div className="flex items-center gap-3 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3">
+          <RefreshCw className="h-4 w-4 animate-spin text-blue-500 shrink-0" />
+          <div>
+            <p className="text-xs font-semibold text-blue-700">sitemap.xml 크롤링 중…</p>
+            <p className="text-[11px] text-blue-500 mt-0.5">최대 50개 URL을 순차 점검합니다. 잠시 기다려 주세요.</p>
+          </div>
+        </div>
+      )}
+
+      {/* ── 최초 안내 (결과 없음) ───────────────────────────────── */}
+      {!run && !checking && (
+        <div className="rounded-2xl border-2 border-dashed border-gray-200 px-6 py-8 text-center">
+          <Map className="mx-auto mb-3 h-8 w-8 text-gray-300" />
+          <p className="text-sm font-semibold text-gray-500">사이트맵 체크를 시작하세요</p>
+          <p className="mt-1 text-xs text-gray-400">
+            등록된 URL의 sitemap.xml을 크롤링해<br />404, WP 디버그 오류, 레이아웃 이상 등을 점검합니다.
+          </p>
+        </div>
+      )}
+
+      {/* ── 결과 영역 ────────────────────────────────────────────── */}
+      {run && !checking && (
+        <>
+          {/* sitemap 경로 표시 */}
+          <div className="flex flex-wrap items-center gap-2 text-[11px]">
+            {run.sitemap_found && run.sitemap_url ? (
+              <a href={run.sitemap_url} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1 text-emerald-700 hover:underline font-medium">
+                <Map className="h-3 w-3" />
+                {run.sitemap_url}
+                <ExternalLink className="h-2.5 w-2.5 opacity-60" />
+              </a>
+            ) : (
+              <div className="space-y-1 w-full">
+                <span className="flex items-center gap-1.5 rounded-lg bg-red-50 px-2.5 py-1 text-red-600 font-medium">
+                  <AlertCircle className="h-3 w-3" />
+                  sitemap.xml을 찾을 수 없습니다
+                </span>
+                {(run.tried_urls ?? []).length > 0 && (
+                  <p className="text-[10px] text-gray-400 pl-1">
+                    시도한 경로: {(run.tried_urls ?? []).join(' · ')}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* KPI 카드 4개 */}
+          {run.total_urls > 0 ? (
+            <>
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  { label: '전체 URL', value: run.total_urls, color: 'text-gray-900',     sub: '' },
+                  { label: '정상',      value: run.ok_count,    color: 'text-emerald-600', sub: `${okPct}%` },
+                  { label: '404 / 오류', value: run.error_count, color: run.error_count > 0 ? 'text-red-600' : 'text-gray-400', sub: '' },
+                  { label: '이슈',       value: run.issue_count, color: run.issue_count > 0 ? 'text-amber-600' : 'text-gray-400', sub: '' },
+                ].map(({ label, value, color, sub }) => (
+                  <div key={label} className="rounded-xl border border-gray-100 bg-white px-3 py-3 text-center">
+                    <p className={['text-xl font-bold', color].join(' ')}>{value}</p>
+                    {sub && <p className="text-[10px] font-medium text-gray-400">{sub}</p>}
+                    <p className="mt-0.5 text-[10px] text-gray-400">{label}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* 정상률 프로그레스 바 */}
+              <div>
+                <div className="mb-1 flex items-center justify-between text-[10px] text-gray-400">
+                  <span>정상률</span>
+                  <span className={okPct >= 90 ? 'text-emerald-600 font-semibold' : okPct >= 70 ? 'text-amber-600 font-semibold' : 'text-red-600 font-semibold'}>
+                    {okPct}%
+                  </span>
+                </div>
+                <div className="h-2.5 w-full overflow-hidden rounded-full bg-gray-100">
+                  <div
+                    className={['h-full rounded-full transition-all duration-700', okPct >= 90 ? 'bg-emerald-500' : okPct >= 70 ? 'bg-amber-500' : 'bg-red-500'].join(' ')}
+                    style={{ width: `${okPct}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* 상태 범례 (상태가 2종 이상일 때) */}
+              {(run.error_count > 0 || run.issue_count > 0) && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {(
+                    [
+                      { status: 'ok'           as SitemapPageStatus, cnt: run.ok_count    },
+                      { status: 'not_found'    as SitemapPageStatus, cnt: pages.filter(p=>p.status==='not_found').length    },
+                      { status: 'error'        as SitemapPageStatus, cnt: pages.filter(p=>p.status==='error').length        },
+                      { status: 'wp_debug'     as SitemapPageStatus, cnt: run.issue_count > 0 ? pages.filter(p=>p.status==='wp_debug').length : 0 },
+                      { status: 'layout_issue' as SitemapPageStatus, cnt: pages.filter(p=>p.status==='layout_issue').length },
+                    ] as { status: SitemapPageStatus; cnt: number }[]
+                  ).filter(({ cnt }) => cnt > 0).map(({ status, cnt }) => {
+                    const sm = sitemapStatusMeta(status)
+                    return (
+                      <span key={status} className="flex items-center gap-1 text-[11px] text-gray-500">
+                        <span className={['h-2 w-2 rounded-full shrink-0', sm.dot].join(' ')} />
+                        {sm.label} {cnt}건
+                      </span>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* 필터 탭 */}
+              <div className="flex flex-wrap items-center gap-1">
+                {(
+                  [
+                    { key: 'all'          as SitemapFilter, label: `전체 ${filterCounts.all}` },
+                    { key: 'ok'           as SitemapFilter, label: `정상 ${filterCounts.ok}` },
+                    filterCounts.not_found    > 0 && { key: 'not_found'    as SitemapFilter, label: `404 ${filterCounts.not_found}` },
+                    filterCounts.error        > 0 && { key: 'error'        as SitemapFilter, label: `오류 ${filterCounts.error}` },
+                    filterCounts.wp_debug     > 0 && { key: 'wp_debug'     as SitemapFilter, label: `WP디버그 ${filterCounts.wp_debug}` },
+                    filterCounts.layout_issue > 0 && { key: 'layout_issue' as SitemapFilter, label: `레이아웃 ${filterCounts.layout_issue}` },
+                  ] as ({ key: SitemapFilter; label: string } | false)[]
+                ).filter(Boolean).map((f) => {
+                  const { key, label } = f as { key: SitemapFilter; label: string }
+                  const isActive = filter === key
+                  const isIssue  = key !== 'all' && key !== 'ok'
+                  return (
+                    <button key={key} onClick={() => setFilter(key)}
+                      className={[
+                        'rounded-lg px-2.5 py-1 text-[11px] font-medium transition-colors',
+                        isActive
+                          ? isIssue ? 'bg-red-600 text-white' : 'bg-gray-800 text-white'
+                          : isIssue ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
+                      ].join(' ')}>
+                      {label}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* URL 목록 테이블 */}
+              <div className="overflow-hidden rounded-xl border border-gray-100 bg-white">
+                {/* 컬럼 헤더 */}
+                <div className="grid grid-cols-[1fr_80px_60px_80px] items-center border-b border-gray-100 bg-gray-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                  <span>URL</span>
+                  <span className="text-right">상태</span>
+                  <span className="text-right">코드</span>
+                  <span className="text-right">응답</span>
+                </div>
+
+                {/* 목록 */}
+                <div className="max-h-80 overflow-y-auto divide-y divide-gray-50">
+                  {displayPages.length === 0 ? (
+                    <p className="py-6 text-center text-xs text-emerald-600 font-medium">
+                      이 필터에 해당하는 페이지가 없습니다 ✓
+                    </p>
+                  ) : (
+                    displayPages.map(p => {
+                      const sm = sitemapStatusMeta(p.status)
+                      const isExpanded = expandedUrl === p.url
+                      return (
+                        <div key={p.url}>
+                          <button
+                            type="button"
+                            onClick={() => setExpandedUrl(isExpanded ? null : p.url)}
+                            className="grid w-full grid-cols-[1fr_80px_60px_80px] items-center gap-2 px-3 py-2.5 text-left hover:bg-gray-50 transition-colors"
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className={['h-1.5 w-1.5 rounded-full shrink-0', sm.dot].join(' ')} />
+                              <span className="truncate text-[11px] text-gray-700" title={p.url}>
+                                {p.url.replace(/^https?:\/\/[^/]+/, '') || '/'}
+                              </span>
+                            </div>
+                            <span className={['text-right text-[10px] font-semibold', sm.color].join(' ')}>
+                              {sm.label}
+                            </span>
+                            <span className={[
+                              'text-right font-mono text-[10px]',
+                              p.status_code && p.status_code < 400 ? 'text-emerald-600' : 'text-red-600',
+                            ].join(' ')}>
+                              {p.status_code ?? '—'}
+                            </span>
+                            <span className="text-right text-[10px] text-gray-400">
+                              {fmtMs2(p.response_time_ms)}
+                            </span>
+                          </button>
+
+                          {/* 확장: URL 전체 + 이슈 목록 */}
+                          {isExpanded && (
+                            <div className="border-t border-gray-50 bg-gray-50 px-3 py-2.5 space-y-1.5">
+                              <a href={p.url} target="_blank" rel="noopener noreferrer"
+                                className="flex items-center gap-1 text-[11px] text-blue-600 hover:underline break-all">
+                                {p.url}
+                                <ExternalLink className="h-2.5 w-2.5 shrink-0" />
+                              </a>
+                              {p.issues.length > 0 && (
+                                <ul className="space-y-0.5">
+                                  {p.issues.map(issue => (
+                                    <li key={issue} className="flex items-start gap-1.5 text-[11px] text-amber-700">
+                                      <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" />
+                                      {issue}
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+
+                {/* 하단 요약 */}
+                <div className="border-t border-gray-100 bg-gray-50 px-3 py-2 text-[10px] text-gray-400 flex items-center justify-between">
+                  <span>{displayPages.length}개 URL 표시 중</span>
+                  {run.total_urls >= 50 && (
+                    <span className="text-amber-600">최대 50개 URL 체크 (sitemap 전체가 더 클 수 있음)</span>
+                  )}
+                </div>
+              </div>
+            </>
+          ) : (
+            /* sitemap은 찾았지만 URL 없음 */
+            run.sitemap_found && (
+              <div className="flex items-center gap-2 rounded-xl bg-amber-50 border border-amber-100 px-4 py-3 text-xs text-amber-700">
+                <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                sitemap.xml은 발견했지만 파싱 가능한 페이지 URL이 없습니다.
+              </div>
+            )
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
 // ── 사이트 카드 ───────────────────────────────────────────────────
-type DetailTab = 'history' | 'vitals' | 'codes' | 'ssl'
+type DetailTab = 'history' | 'vitals' | 'codes' | 'ssl' | 'sitemap'
 
 interface SiteCardProps {
   site: MonitorSite
@@ -714,6 +1053,7 @@ function SiteCard({ site, onCheck, onEdit, onDelete, checking, ssl, sslLoading, 
               { key: 'vitals',  label: 'Web Vitals',  Icon: Zap         },
               { key: 'codes',   label: 'HTTP 코드',   Icon: BarChart2   },
               { key: 'ssl',     label: 'SSL 인증서',  Icon: ShieldCheck },
+              { key: 'sitemap', label: '사이트맵',    Icon: Map         },
             ] as { key: DetailTab; label: string; Icon: React.ElementType }[]).map(({ key, label, Icon }) => (
               <button key={key} onClick={() => setTab(key)}
                 className={[
@@ -802,6 +1142,11 @@ function SiteCard({ site, onCheck, onEdit, onDelete, checking, ssl, sslLoading, 
                 {/* ── SSL 인증서 탭 ─────────────────────────────── */}
                 {tab === 'ssl' && (
                   <SslPanel ssl={ssl} loading={sslLoading} onRefresh={onSslRefresh} />
+                )}
+
+                {/* ── 사이트맵 탭 ──────────────────────────────── */}
+                {tab === 'sitemap' && (
+                  <SitemapPanel siteId={site.id} />
                 )}
 
                 {/* ── HTTP 코드 분포 탭 ────────────────────────── */}
