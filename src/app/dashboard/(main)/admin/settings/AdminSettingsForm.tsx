@@ -6,8 +6,6 @@ import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { ArrowLeft, Save, Loader2, CheckCircle2, Upload, X } from 'lucide-react'
 import Link from 'next/link'
-import { createClient } from '@/utils/supabase/client'
-import { uploadSiteAsset } from '@/utils/supabase/storage'
 
 const RichTextEditor = dynamic(() => import('@/components/builder/RichTextEditor'), { ssr: false })
 
@@ -95,9 +93,13 @@ export default function AdminSettingsForm({ initialSettings, integrationStatus }
     setUploading(true)
     setError('')
     try {
-      const supabase = createClient()
-      const url = await uploadSiteAsset(supabase, file, type)
-      set(settingKey, url)
+      const body = new FormData()
+      body.append('file', file)
+      body.append('type', type)
+      const res = await fetch('/api/admin/upload-asset', { method: 'POST', body })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json?.error ?? `업로드 실패 (${res.status})`)
+      set(settingKey, json.url)
     } catch (err) {
       setError(err instanceof Error ? err.message : '업로드 실패')
     } finally {
