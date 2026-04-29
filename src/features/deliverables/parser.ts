@@ -159,7 +159,7 @@ async function parseInstagram(url: string): Promise<ParsedDeliverable> {
   const accessToken = process.env.INSTAGRAM_ACCESS_TOKEN
   if (accessToken) {
     try {
-      const oembedUrl = `https://graph.facebook.com/v18.0/instagram_oembed?url=${encodeURIComponent(url)}&access_token=${accessToken}&fields=thumbnail_url,title,author_name`
+      const oembedUrl = `https://graph.facebook.com/v23.0/instagram_oembed?url=${encodeURIComponent(url)}&access_token=${accessToken}&fields=thumbnail_url,title,author_name`
       const res = await fetchWithTimeout(oembedUrl, { next: { revalidate: 0 } })
       if (res.ok) {
         const data = await res.json() as { thumbnail_url?: string; title?: string; author_name?: string }
